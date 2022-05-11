@@ -182,6 +182,7 @@
     <None Include="x64_console.inc" />
     <None Include="x64_run.inc" />
     <None Include="x64_memory.inc" />
+    <None Include="x64_utility.inc" />
     <None Include="x86_builder.inc" />
     <None Include="x86_console.inc" />
     <None Include="x86_def.inc" />

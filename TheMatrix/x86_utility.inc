@@ -44,6 +44,7 @@ string_clone proc buffer:dword
 	local cloned_string:dword
 
 	invoke string_len, buffer
+	inc eax
 	mov l, eax
 
 	invoke mem_alloc, l

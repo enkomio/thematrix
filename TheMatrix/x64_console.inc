@@ -6,11 +6,10 @@
 print_buffer proc frame
 	_CreateFrame pb_,LOCALS_SIZE
 	_EndProlog
+	_AllocHomeArea
 
 	mov qword ptr pb_OffsetHomeRCX[rbp], rcx
 	mov qword ptr pb_OffsetHomeRDX[rbp], rdx
-
-	_AllocHomeArea
 
 	mov rcx, STD_OUTPUT_HANDLE
 	call GetStdHandle
