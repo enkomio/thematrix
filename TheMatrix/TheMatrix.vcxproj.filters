@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="C">
+      <UniqueIdentifier>{2973de9b-86ec-47d2-a08f-5f33f5380303}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ASM">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ASM\x86">
+      <UniqueIdentifier>{12bb138c-aa6f-4bc2-82eb-36bd1ec88512}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ASM\x64">
+      <UniqueIdentifier>{c5d21a56-03fe-4747-90a0-f23a30bf3602}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="x86_builder.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_console.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_def.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_hook_engine.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_pe.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_run.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_utility.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="x86_main.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
+    <None Include="const.inc">
+      <Filter>ASM</Filter>
+    </None>
+    <None Include="api.inc">
+      <Filter>ASM</Filter>
+    </None>
+    <None Include="x64_hook_engine.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_main.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_pe.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_def.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_console.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_builder.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_run.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+    <None Include="x64_memory.inc">
+      <Filter>ASM\x64</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="hooks.c">
+      <Filter>C</Filter>
+    </ClCompile>
+    <ClCompile Include="hooks_kernel32.c">
+      <Filter>C</Filter>
+    </ClCompile>
+    <ClCompile Include="hooks_Bcrypt.c">
+      <Filter>C</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="hooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="main.asm">
+      <Filter>ASM</Filter>
+    </MASM>
+  </ItemGroup>
+</Project>
