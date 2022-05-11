@@ -41,11 +41,3 @@ hook_call_original endp
 hook_add proc
 	ret
 hook_add endp
-
-hook_set_log_folder proc
-	ret
-hook_set_log_folder endp
-
-hook_log_data proc
-	ret
-hook_log_data endp
