@@ -28,6 +28,7 @@ string_len endp
 string_clone proc frame
 	_CreateFrame stringcl_,LOCALS_SIZE,0,rsi,rdi
 	_EndProlog
+	_AllocHomeArea
 	mov qword ptr stringcl_OffsetHomeRCX[rbp], rcx
 
 	; compute string length for allocation
@@ -58,3 +59,43 @@ string_clone proc frame
 	xor rax, rax
 	jmp @exit
 string_clone endp
+
+;
+; Compare two strings
+;	Args: <string A>, <string B>
+;	Ret: TRUE if both strings are equal, FALSE otherwise
+;
+string_equals proc frame
+	_CreateFrame stringeq_,LOCALS_SIZE,0,rsi,rdi
+	_EndProlog
+	_AllocHomeArea
+	mov qword ptr stringeq_OffsetHomeRCX[rbp], rcx
+	mov qword ptr stringeq_OffsetHomeRDX[rbp], rdx
+
+	; compare the two strings length
+	call string_len
+	mov rsi, rax
+
+	mov rcx, rdx
+	call string_len
+	cmp rax, rsi
+	jne @not_equal
+
+	; the strings have the same length, check content
+	mov rcx, rax
+	mov rsi, qword ptr stringeq_OffsetHomeRCX[rbp]
+	mov rdi, qword ptr stringeq_OffsetHomeRDX[rbp]
+	repe cmpsb
+	test rcx, rcx
+	jnz @not_equal
+
+	mov rax, 1
+
+@exit:
+	_DeleteFrame rsi,rdi
+	ret
+
+@not_equal:
+	xor rax, rax
+	jmp @exit
+string_equals endp

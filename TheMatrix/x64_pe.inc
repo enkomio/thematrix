@@ -672,3 +672,83 @@ pe_load proc frame
 	xor rax, rax
 	jmp @exit
 pe_load endp
+
+;
+; Resolve an exported function from the input DLL.
+;	Args: <DLL base>, <function name>
+;	Ret: The address containing the function RVA on success, or NULL otherwise
+;
+pe_resolve_exported_function proc frame	
+	peresex_dir_size EQU LOCALS.Local1
+	peresex_dir EQU LOCALS.Local2
+	peresex_pe EQU LOCALS.Local3
+	peresex_counter EQU LOCALS.Local4
+	_CreateFrame peresex_,LOCALS_SIZE,0,r11,r12
+	_EndProlog
+	_AllocHomeArea
+	mov qword ptr peresex_OffsetHomeRCX[rbp], rcx
+	mov qword ptr peresex_OffsetHomeRDX[rbp], rdx
+
+	; go to PE
+	mov r8d, IMAGE_DOS_HEADER.e_lfanew[rcx]
+	add r8, rcx
+	mov qword ptr peresex_pe[rbp], r8
+
+	; ensure we have an export directory
+	lea r8, IMAGE_NT_HEADERS64.OptionalHeader.DataDirectory[r8]
+	mov eax, IMAGE_DATA_DIRECTORY._Size[r8]
+	test rax, rax
+	jz @exit
+	mov qword ptr peresex_dir_size[rbp], rax
+
+	; go to the export directory
+	mov eax, IMAGE_DATA_DIRECTORY.VirtualAddress[r8]
+	add rax, rcx
+	mov qword ptr peresex_dir[rbp], rax
+
+	; get export information, RCX = Numbers of Names, r11 = Address of Names
+	mov ecx, IMAGE_EXPORT_DIRECTORY.NumberOfNames[rax]	
+	mov r11d, IMAGE_EXPORT_DIRECTORY.AddressOfNames[rax]
+	add r11, qword ptr peresex_OffsetHomeRCX[rbp]
+
+	; index
+	xor r12, r12
+@find_exported_function:
+	mov qword ptr peresex_counter[rbp], rcx
+
+	; get the i-th function name
+	mov ecx, dword ptr [r11 + r12 * sizeof dword]
+	add rcx, qword ptr peresex_OffsetHomeRCX[rbp]
+	
+	; check if the name matches
+	mov rdx, qword ptr peresex_OffsetHomeRDX[rbp]	
+	call string_equals
+	test rax, rax
+	jnz @function_found
+
+	; go to the next function
+	inc r12
+	mov rcx, qword ptr peresex_counter[rbp]
+	loop @find_exported_function
+	jmp @fail
+
+@function_found:	
+	; get the i-th function ordinal
+	mov rax, qword ptr peresex_dir[rbp]
+	mov r8d, IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals[rax]
+	add r8, qword ptr peresex_OffsetHomeRCX[rbp]
+	movzx r8, word ptr [r8 + r12 * sizeof word]
+
+	; get the i-th function RVA 
+	mov r9d, IMAGE_EXPORT_DIRECTORY.AddressOfFunctions[rax]
+	add r9, qword ptr peresex_OffsetHomeRCX[rbp]
+	lea rax, dword ptr [r9 + r8 * sizeof dword]
+
+@exit:
+	_DeleteFrame r11,r12
+	ret
+
+@fail:
+	xor rax, rax
+	jmp @exit
+pe_resolve_exported_function endp

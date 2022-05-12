@@ -1,14 +1,16 @@
 #include <Windows.h>
 #include "hooks.h"
 
-static hook_info* g_VirtualAlloc_hook = 0;
+static hook_info* g_VirtualFree_hook = 0;
 
-int __cdecl hook_VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
+LPVOID __cdecl VirtualFree_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
 {
-	return 0;
+	LPVOID allocated_buffer = hook_call_original(g_VirtualFree_hook, lpAddress, dwSize, dwFreeType);
+	return allocated_buffer;
 }
 
 int hooks_kernel32(void)
 {
+	g_VirtualFree_hook = hook_add("Kernel32.dll", "VirtualFree", VirtualFree_hook);
 	return 0;
 }
