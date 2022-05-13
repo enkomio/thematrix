@@ -22,7 +22,8 @@ hook_set proc frame
 	hset_cave_va EQU Locals.Local2
 	hset_protection EQU Locals.Local3
 	hset_func_offset EQU Locals.Local4
-	_CreateFrame hset_,LOCALS_SIZE,0,rbx
+	hset_STACK_SIZE EQU LOCALS_SIZE + MEMORY_BASIC_INFORMATION_SIZE
+	_CreateFrame hset_,hset_STACK_SIZE,0,rbx,rsi,rdi
 	_EndProlog
 	_AllocHomeArea
 	mov qword ptr hset_OffsetHomeRCX[rbp], rcx
@@ -35,8 +36,6 @@ hook_set proc frame
 	jz @fail
 	mov qword ptr hset_hDll[rbp], rax
 
-	; TODO: this method allows just one hook. Implements a generic one.
-
 	; find a code cave in the DLL (in general at the end of a section)
 	; RCX = number of section, RBX = current section base
 	mov r8d, IMAGE_DOS_HEADER.e_lfanew[rax]
@@ -48,29 +47,49 @@ hook_set proc frame
 	add rbx, r8
 
 @check_section_for_cave:
-	; get pointer to section data	
+	; get pointer to section data		
+	mov esi, IMAGE_SECTION_HEADER.VirtualAddress[rbx]
+	add rsi, qword ptr hset_hDll[rbp]
+
+	; compute section allocation size
+	mov r8, MEMORY_BASIC_INFORMATION_SIZE
+	lea rdx, LOCALS[rbp + LOCALS_SIZE] ; pointer to MEMORY_BASIC_INFORMATION
+	mov rcx, rsi
+	call VirtualQuery
+	test rax, rax
+	jz @fail
+
+	; compute boundarys, from section end (RSI) to allocation end (RDI).
 	mov r9d, IMAGE_SECTION_HEADER.VirtualSize[rbx]
-	mov r10d, IMAGE_SECTION_HEADER.VirtualAddress[rbx]
-	add r10, qword ptr hset_hDll[rbp]
+	add rsi, r9
+
+	lea rax, LOCALS[rbp + LOCALS_SIZE] ; pointer to MEMORY_BASIC_INFORMATION
+	mov rdi, MEMORY_BASIC_INFORMATION.BaseAddress[rax]
+	add rdi, MEMORY_BASIC_INFORMATION.RegionSize[rax]
+	sub rdi, sizeof xmmword
 	
-	; check if the last bytes are zero
-	add r10, r9
-	vmovups xmm0, xmmword ptr [r10]
+@search_cave:
+	; check if the bytes are zero	
+	vmovups xmm0, xmmword ptr [rsi]
 	ptest xmm0, xmm0
 	jz @cave_found
 
-	; check the next section
+	inc rsi
+	cmp rsi, rdi
+	jb @search_cave
+
+	; no cave in this section, check the next one
 	add rbx, sizeof IMAGE_SECTION_HEADER	
 	loop @check_section_for_cave
 	jmp @fail
 @cave_found:
-	mov qword ptr hset_cave_va[rbp], r10
+	mov qword ptr hset_cave_va[rbp], rsi
 
 	; unprotect code
 	lea r9, qword ptr hset_protection[rbp]
 	mov r8, PAGE_EXECUTE_READWRITE
 	mov rdx, 0fh
-	mov rcx, r10
+	mov rcx, rsi
 	call VirtualProtect
 	test rax, rax
 	jz @fail
@@ -140,7 +159,7 @@ hook_set proc frame
 	mov rax, 1
 
 @exit:
-	_DeleteFrame rbx
+	_DeleteFrame rbx,rsi,rdi
 	ret
 
 @fail:
