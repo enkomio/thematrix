@@ -235,5 +235,31 @@ hook_add endp
 ;	Ret: the value of the hooked function
 ;
 hook_call_original proc
+	; save HOOK_DEF ptr
+	mov r10, rcx
+	
+	; reconstruct arguments, by removing the first one
+	mov rcx, rdx
+	mov rdx, r8
+	mov r8, r9
+
+	; save return value
+	pop r11
+
+	; trahs first home space, since the 
+	; first stack argument was moved to R9
+	pop r9
+
+	; restore return value
+	push r11
+
+	; set last register argument
+	mov r9, qword ptr [rsp + 4 * sizeof qword]
+		
+	; call original function
+	mov r10, HOOK_DEF.orig_func[r10]
+	jmp r10
+
+	; this code should never be executed
 	ret
 hook_call_original endp

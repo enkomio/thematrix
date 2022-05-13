@@ -196,9 +196,11 @@
     <ClCompile Include="hooks.c" />
     <ClCompile Include="hooks_Bcrypt.c" />
     <ClCompile Include="hooks_kernel32.c" />
+    <ClCompile Include="utility.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hooks.h" />
+    <ClInclude Include="utility.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

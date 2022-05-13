@@ -92,9 +92,15 @@
     <ClCompile Include="hooks_Bcrypt.c">
       <Filter>C</Filter>
     </ClCompile>
+    <ClCompile Include="utility.c">
+      <Filter>C</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
