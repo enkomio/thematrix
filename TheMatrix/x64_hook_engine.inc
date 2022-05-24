@@ -13,7 +13,6 @@ HOOK_DEF ends
 
 ;
 ; This funcion uses EAT hooking.
-; See https://devblogs.microsoft.com/oldnewthing/20110921-00/?p=9583
 ;	Args: <lib_name:ptr char> <func_name:ptr char> <hook:ptr HOOK_DEF>
 ;	Ret: TRUE on success, FALSE otherwise
 ;
