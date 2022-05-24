@@ -5,9 +5,9 @@
 static hook_info* g_BCryptEncrypt_hook = 0;
 static hook_info* g_BCryptDecrypt_hook = 0;
 
-int __cdecl hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
+LPVOID __stdcall hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
 {	
-	NTSTATUS ret = (NTSTATUS)hook_call_original(
+	LPVOID ret = hook_call_original(
 		g_BCryptDecrypt_hook,
 		hKey,
 		pbInput,
@@ -23,9 +23,9 @@ int __cdecl hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbI
 	return ret;
 }
 
-int __cdecl hook_BCryptEncrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
+LPVOID __stdcall hook_BCryptEncrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
 {
-	NTSTATUS ret = (NTSTATUS)hook_call_original(
+	LPVOID ret = hook_call_original(
 		g_BCryptEncrypt_hook,
 		hKey,
 		pbInput,

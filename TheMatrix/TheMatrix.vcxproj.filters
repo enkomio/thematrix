@@ -81,6 +81,9 @@
     <None Include="x64_utility.inc">
       <Filter>ASM\x64</Filter>
     </None>
+    <None Include="x86_memory.inc">
+      <Filter>ASM\x86</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hooks.c">

@@ -16,6 +16,8 @@ HOOK_DEF ends
 ;
 ; This funcion uses the MS hot-patching method.
 ; See https://devblogs.microsoft.com/oldnewthing/20110921-00/?p=9583
+;	Args: <lib_name:ptr char> <func_name:ptr char> <hook:ptr HOOK_DEF>
+;	Ret: TRUE on success, FALSE otherwise
 ;
 hook_set proc C lib_name:ptr char, func_name:ptr char, hook:ptr HOOK_DEF
 	local old_protection:dword
@@ -71,9 +73,11 @@ hook_set proc C lib_name:ptr char, func_name:ptr char, hook:ptr HOOK_DEF
 hook_set endp
 
 ;
-; add a function hook. return the hook object or null on error
+; Place an hook to the specified function
+;	Args: <lib_name:ptr char> <func_name:ptr char> <hook function addr>
+;	Ret: ptr HOOK_DEF on success, FALSE otherwise
 ;
-hook_add proc C export lib_name:ptr char, func_name:ptr char, hook_func:ptr void
+hook_add proc C lib_name:ptr char, func_name:ptr char, hook_func:ptr void
 	local hook:ptr HOOK_DEF
 	local r_ebx:dword
 	local r_esi:dword
@@ -83,7 +87,7 @@ hook_add proc C export lib_name:ptr char, func_name:ptr char, hook_func:ptr void
 	mov r_esi, esi
 	mov r_edi, edi
 
-	invoke mem_alloc, sizeof HOOK_DEF
+	invoke heap_alloc, sizeof HOOK_DEF
 	test eax, eax
 	jz @fail
 	mov hook, eax
@@ -123,9 +127,11 @@ hook_add proc C export lib_name:ptr char, func_name:ptr char, hook_func:ptr void
 hook_add endp
 
 ;
-; call the original function. Accept as input the hook
+; Call the original function
+;	Args: <HOOK_DEF ptr>, <varargs arguments...>
+;	Ret: the value of the hooked function
 ;
-hook_call_original proc C export
+hook_call_original proc C
 	lea ecx, dword ptr [esp + 4] ; save the value
 	pop edx ; pop the return address to a non-volatile register
 

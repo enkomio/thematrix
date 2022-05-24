@@ -1,9 +1,7 @@
 g_string_DllRegisterServer byte "DllRegisterServe"
 g_string_add_opt byte '-',0h,'a',0h,'d',0h,'d',0h ; "-add" unicode 
-g_string_file_create byte "Created file with '.build.exe' extension", 0h
-g_string_load_error byte "Resource file not found. Please run it with -add option first", 0h
-g_string_format_log byte "%s%d_%s_%s_%d.log",0h
-g_base_address dword 0h
+g_string_file_create byte "Activator file created", 0h
+g_string_load_error byte "Resource file not found. Please run it with '-add' option first", 0h
 
 
 ; Windows constants

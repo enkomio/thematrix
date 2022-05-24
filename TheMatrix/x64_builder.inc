@@ -53,6 +53,9 @@ add_resource proc frame
 	mov r8, qword ptr ar_file_size[rbp]
 	mov rdx, qword ptr ar_buffer[rbp]
 	mov rcx, qword ptr ar_hFile[rbp]
+	; this is a waste of space since I can recover part of 
+	; the memory reserved from the previous call, but it is
+	; annoying and error prone.
 	_AllocHomeArea
 	call ReadFile
 	test rax, rax
@@ -113,7 +116,6 @@ add_resource endp
 clone_file proc frame
 	_CreateFrame cf_,LOCALS_SIZE,0,rdi
 	_EndProlog
-
 	_AllocHomeArea
 
 	mov qword ptr cf_OffsetHomeRCX[rbp], rcx
@@ -121,21 +123,15 @@ clone_file proc frame
 	mov qword ptr cf_OffsetHomeR8[rbp], r8
 
 	; alloc memory for original file name
-	call GetProcessHeap
-	mov rcx, rax
-	mov rdx, HEAP_ZERO_MEMORY
-	mov r8, 512h
-	call HeapAlloc
+	mov rcx, 512h
+	call heap_alloc
 	test rax, rax
 	jz @fail
 	mov qword ptr LOCALS.Local1[rbp], rax
 
 	; alloc memory for the clone file name
-	call GetProcessHeap
-	mov rcx, rax
-	mov rdx, HEAP_ZERO_MEMORY
-	mov r8, 512h
-	call HeapAlloc
+	mov rcx, 512h
+	call heap_alloc
 	test rax, rax
 	jz @fail
 	mov qword ptr LOCALS.Local2[rbp], rax
@@ -179,11 +175,8 @@ clone_file proc frame
 	jz @fail
 
 	; clean-up memory
-	call GetProcessHeap	
-	mov r8, qword ptr LOCALS.Local1[rbp]
-	xor rdx, rdx
-	mov rcx, rax
-	call HeapFree
+	mov rcx, qword ptr LOCALS.Local1[rbp]
+	call heap_free
 
 	; return the name of the cloned file
 	mov rax, qword ptr LOCALS.Local2[rbp]
@@ -205,7 +198,6 @@ clone_file endp
 create_artifact proc frame
 	_CreateFrame ca_,LOCALS_SIZE
 	_EndProlog
-
 	_AllocHomeArea
 
 	mov qword ptr ca_OffsetHomeRCX[rbp], rcx
@@ -225,10 +217,8 @@ create_artifact proc frame
 
 	; free resources
 	call GetProcessHeap
-	mov r8, qword ptr LOCALS.Local1[rbp]
-	xor rdx, rdx
-	mov rcx, rax
-	call HeapFree
+	mov rcx, qword ptr LOCALS.Local1[rbp]
+	call heap_free
 
 	mov rax, 1
 

@@ -1,3 +1,8 @@
+;
+; Load the embedded binary
+;	Args: None
+;	Ret: The binary on success, NULL otherwise
+;
 load_embedded_resource proc
 	local file_content:ptr byte
 	local hRes:dword
@@ -50,7 +55,12 @@ load_embedded_resource proc
 	jmp @exit
 load_embedded_resource endp
 
-run_binary proc
+;
+; Run the embedded binary
+;	Args: The arguments might vary according to how the binary is invoked (.DLL or .EXE)
+;	Ret: The PE base address on success, NULL otherwise
+;
+run_binary proc a0:dword, a1:dword, a2:dword
 	local file_content:ptr byte
 	local base_addr:ptr byte
 	local pe_addr:ptr byte
@@ -86,22 +96,22 @@ run_binary proc
 	mov eax, pe_addr
 	movzx eax, word ptr IMAGE_NT_HEADERS32.FileHeader.Characteristics[eax]
 	test eax, IMAGE_FILE_DLL
-	jz @call_entry_point
+	jz @run_as_exe
 
-	push 0h ; lpReserver	
-	push 1 ; fdwReason
-	push base_addr ; hModule
+	push a2 ; lpReserver	
+	push a1 ; fdwReason
+	push a0 ; hModule
 	jmp @call_entry_point
 
 @run_as_exe:
-	push 0h ; argv
-	push 0h ; argc
+	push a1 ; argv
+	push a0 ; argc
 	
 @call_entry_point:
 	mov eax, pe_addr
 	mov eax, IMAGE_NT_HEADERS32.OptionalHeader.AddressOfEntryPoint[eax]	
 	add eax, base_addr
-	call eax
+ 	call eax
 
 	mov eax, base_addr
 @exit:

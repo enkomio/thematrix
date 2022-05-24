@@ -2,7 +2,7 @@
 #include <shlobj_core.h>
 #include "utility.h"
 
-void log_data(uint32_t data_size, uint8_t* data, char* name)
+void log_data(size_t data_size, uint8_t* data, char* name)
 {
 	HANDLE hFile = INVALID_HANDLE_VALUE;
 	DWORD nCount = 0;
@@ -28,7 +28,7 @@ void log_data(uint32_t data_size, uint8_t* data, char* name)
 		);
 
 		if (hFile != INVALID_HANDLE_VALUE) {
-			WriteFile(hFile, data, data_size, &nCount, NULL);
+			WriteFile(hFile, data, (DWORD)data_size, &nCount, NULL);
 			CloseHandle(hFile);
 		}
 	}

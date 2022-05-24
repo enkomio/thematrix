@@ -21,7 +21,6 @@ MEMORY_BASIC_INFORMATION_SIZE equ sizeof MEMORY_BASIC_INFORMATION
 get_module_base proc frame
 	_CreateFrame gmb_,MEMORY_BASIC_INFORMATION_SIZE
 	_EndProlog
-
 	_AllocHomeArea
 		
 	mov qword ptr gmb_OffsetHomeRCX[rbp], rcx

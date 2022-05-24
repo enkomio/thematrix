@@ -2,7 +2,8 @@
 
 ;
 ; Write to console the input buffer
-; Parameter: buffer to print, buffer size
+;	Args: <buffer to print>, <buffer size>
+;	Ret: TRUE on success, FALSE otherwise
 ;
 print_buffer proc
 	push ebp
@@ -46,7 +47,8 @@ endm
 
 ;
 ; Write to console the input ASCII string
-; Parameter: String to print
+;	Args: <String to print>
+;	Ret: TRUE on success, FALSE otherwise
 ;
 print_line proc
 	push ebp

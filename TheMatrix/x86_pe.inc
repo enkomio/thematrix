@@ -1,6 +1,7 @@
-;
-; PEB data structures (I don't need the full definition, only the parts that I need)
-;
+;-------------------------------------------------------------------------
+; PEB data structures (I don't need the full definition, 
+; only the parts that I need for my purpose)
+;-------------------------------------------------------------------------
 LIST_ENTRY struct
 	Flink				dword ?
 	Blink				dword ?
@@ -56,9 +57,9 @@ PEB struct
 	ProcessParameters	dword ?
 PEB ends
 
-;
+;-------------------------------------------------------------------------
 ; PE data structures
-;
+;-------------------------------------------------------------------------
 IMAGE_BASE_RELOCATION struct
 	VirtualAddress          dword ?
 	SizeOfBlock             dword ?
@@ -200,41 +201,11 @@ IMAGE_SECTION_HEADER struct
     Characteristics         dword ?
 IMAGE_SECTION_HEADER ends
 
-MEMORY_BASIC_INFORMATION struct
-	BaseAddress			dword ?
-	AllocationBase		dword ?
-	AllocationProtect	dword ?
-	PartitionId			word ?
-	RegionSize			dword ?
-	State				dword ?
-	Protect				dword ?
-	_Type				dword ?
-MEMORY_BASIC_INFORMATION ends
-
 ;-------------------------------------------------------------------------
 ; Functions
 ;-------------------------------------------------------------------------
 
-get_module_base proc
-	local mem_info:MEMORY_BASIC_INFORMATION
-
-	lea eax, mem_info
-	invoke VirtualQuery, offset get_module_base, eax, sizeof MEMORY_BASIC_INFORMATION
-	test eax, eax
-	jz @fail
-
-	lea eax, mem_info
-	mov eax, MEMORY_BASIC_INFORMATION.AllocationBase[eax]
-
-@exit:
-	ret
-
-@fail:
-	mov eax, ebx
-	jmp @exit
-get_module_base endp
-
-pe_map_headers proc buffer:ptr byte
+pe_map proc buffer:ptr byte
 	local base_addr:ptr byte
 	local pe_file:ptr byte
 
@@ -281,8 +252,13 @@ pe_map_headers proc buffer:ptr byte
 @fail:
 	xor eax, eax
 	jmp @exit
-pe_map_headers endp
+pe_map endp
 
+;
+; Adjust the PEB module list in order to insert the embedded binary among the loaded modules
+;	Args: <loaded pe base address>
+;	Ret: TRUE on success, FALSE otherwise
+;
 pe_adjust_PEB proc base_addr:ptr byte
 	local pe_addr:ptr byte	
 	local mem_info:MEMORY_BASIC_INFORMATION
@@ -352,7 +328,7 @@ pe_adjust_PEB proc base_addr:ptr byte
 	cmovbe ebx, eax
 
 	; allocate mem for new entry
-	invoke mem_alloc, ebx
+	invoke heap_alloc, ebx
 	test eax, eax
 	jz @fail
 	mov ldr_entry_new, eax
@@ -408,6 +384,11 @@ pe_adjust_PEB proc base_addr:ptr byte
 	jmp @exit
 pe_adjust_PEB endp
 
+;
+; Resolve PE imports
+;	Args: <mapped PE>
+;	Ret: TRUE on success, FALSE otherwise
+;
 pe_resolve_imports proc base_addr:ptr byte
 	local lib_dll_handle:dword
 
@@ -487,6 +468,11 @@ pe_resolve_imports proc base_addr:ptr byte
 	jmp @exit
 pe_resolve_imports endp
 
+;
+; Relocate the mapped PE
+;	Args: <mapped pe address>
+;	Ret: TRUE on success, FALSE otherwise
+;
 pe_relocate proc base_addr:ptr byte
 	local relocation_delta:dword
 	local relocation_block_base:dword
@@ -582,12 +568,14 @@ pe_relocate proc base_addr:ptr byte
 pe_relocate endp
 
 ;
-; Map the input PE buffer. Return the allocation address or 0 on error
+; Load the buffer containing the PE file
+;	Args: <PE buffer>
+;	Ret: Loaded PE VA on success, NULL on error
 ;
 pe_load proc buffer:ptr byte
 	local base_addr:ptr byte
 	
-	invoke pe_map_headers, buffer
+	invoke pe_map, buffer
 	test eax, eax
 	jz @fail
 	mov base_addr, eax
@@ -614,7 +602,12 @@ pe_load proc buffer:ptr byte
 	jmp @exit
 pe_load endp
 
-pe_resolve_exported_function proc base_addr:dword
+;
+; Resolve an exported function from the input DLL.
+;	Args: <DLL base>, <function name>
+;	Ret: The address containing the function RVA on success, or NULL otherwise
+;
+pe_resolve_exported_function proc base_addr:dword, funnc_name:dword
 	local pe_file:dword
 
 	mov eax, base_addr

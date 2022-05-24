@@ -6,6 +6,6 @@
 #include <stdio.h>
 
 // log data to an hard-coded directory
-void log_data(uint32_t data_size, uint8_t* data, char* name);
+void log_data(size_t data_size, uint8_t* data, char* name);
 
 #endif

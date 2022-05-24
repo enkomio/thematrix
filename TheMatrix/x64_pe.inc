@@ -283,7 +283,6 @@ pe_map proc frame
 	jmp @exit
 pe_map endp
 
-
 ;
 ; Adjust the PEB module list in order to insert the embedded binary among the loaded modules
 ;	Args: <loaded pe base address>
@@ -388,8 +387,6 @@ pe_adjust_PEB proc frame
 	; finally, add the new entry to all the lists
 	mov rcx, 3
 	mov rsi, qword ptr peap_entry_src[rbp]
-
-	; TODO: change FullDllName and BaseDllName accordintg to the name of the .edata
 
 @insert_entry:
 	mov r10, qword ptr LIST_ENTRY.Flink[rsi]		; save FLink value

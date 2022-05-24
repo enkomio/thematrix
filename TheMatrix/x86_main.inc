@@ -5,16 +5,22 @@
 
 .data
 
-; 
-; this function is called to place all the function hooks
 ;
-extern C hooks_init:proc
+; The mapped PE base address
+;
+g_base_address dword 0h
 
 .code
+
+; 
+; This function is used to place the function hooks
+;
+extern C hooks_init:proc
 
 include const.inc
 include api.inc
 include x86_def.inc
+include x86_memory.inc
 include x86_utility.inc
 include x86_pe.inc
 include x86_builder.inc
@@ -26,9 +32,11 @@ includelib libucrt.lib
 includelib legacy_stdio_definitions.lib
 
 ;
-; parse the command line
+; Parse the command line
+;	Args: <*argc>
+;	Ret: <string array>
 ;
-parse_args proc
+parse_command_line proc
 	enter 0, 0
 
 	; get the array
@@ -39,24 +47,23 @@ parse_args proc
 
 	leave
 	ret
-parse_args endp
+parse_command_line endp
 
 ;
-; check if the user specified the -add option. If so return the arg index
+; Check if the user specified the -add option. If so, it returns the arg index
+;	Args: <argc>, <argv>
+;	Ret: TRUE on success, -1 otherwise
 ;
-is_add_command proc
-	enter 0,0
+has_add_command proc argc:dword, argv:dword
 	; do we have an "-add" argument
 	xor ebx, ebx
-	xor eax, eax
-	mov edx, dword ptr [ebp+arg0]	
-	mov ecx, dword ptr [ebp+arg1]
+	mov edx, argv
+	mov ecx, argc
 	movsd xmm1, qword ptr [g_string_add_opt]
 
 @check_arg:		
-	lea eax, dword ptr [edx + ebx * sizeof dword]		
+	mov eax, dword ptr [edx + ebx * sizeof dword]		
 	inc ebx	
-	mov eax, dword ptr [eax]	
 	vmovups xmm0, xmmword ptr [eax]
 	pcmpeqd xmm0, xmm1	
 	ptest xmm0, xmm0
@@ -65,13 +72,12 @@ is_add_command proc
 	mov eax, 0ffffffffh
 
 @exit:
-	leave
 	ret
 
 @option_set:
 	mov eax, ebx
 	jmp @exit
-is_add_command endp
+has_add_command endp
 
 DllRegisterServer proc C export
 	r_ebx equ local0
@@ -89,7 +95,7 @@ DllRegisterServer proc C export
 	cmp g_base_address, 0h
 	jz @fail
 
-	invoke pe_resolve_exported_function, g_base_address
+	invoke pe_resolve_exported_function, g_base_address, offset g_string_DllRegisterServer
 	test eax, eax
 	jz @fail
 
@@ -110,10 +116,18 @@ DllRegisterServer proc C export
 	jmp @exit
 DllRegisterServer endp
 
-run_as_dll proc fdwReason:dword
+;
+; Run the embedded binary as a DLL. This is useful when the binary is invoked with 
+;	Args: <hinstDLL> <fdwReason> <lpReserved>
+;
+run_as_dll proc hinstDLL:dword, fdwReason:dword, lpReserved:dword
 	cmp fdwReason, DLL_PROCESS_ATTACH
 	jne @exit
 
+	; this function will call the DLL entry-point
+	push lpReserved
+	push fdwReason
+	push hinstDLL
 	call run_binary	
 	test eax, eax
 	jz @exit
@@ -126,13 +140,17 @@ run_as_dll proc fdwReason:dword
 	ret
 run_as_dll endp
 
-run_as_executable proc
+;
+; This function run the binary as an executable. 
+;	Args: <argc> <argv>
+;
+run_as_executable proc i_argc:dword, i_argv:dword
 	argc equ local0
 	argv equ local1	
 
 	lea ebx, dword ptr [ebp+argc]
 	push ebx
-	call parse_args
+	call parse_command_line
 
 	; check if we have at least 3 args, otherwise run the embedded binary
 	mov ebx, dword ptr [ebp+argc]
@@ -141,9 +159,7 @@ run_as_executable proc
 	mov dword ptr [ebp+argv], eax
 
 	; it was specified the -add option?
-	push dword ptr [ebp+argc]
-	push dword ptr [ebp+argv]
-	call is_add_command
+	invoke has_add_command, dword ptr [ebp+argc], dword ptr [ebp+argv]
 	mov ecx, eax
 
 	test eax, eax
@@ -160,7 +176,7 @@ run_as_executable proc
 	jmp @exit
 
 @run_resource_binary:
-	call run_binary	
+	invoke run_binary, i_argc, i_argv, 0h
 	test eax, eax
 	jnz @exit
 
@@ -186,6 +202,7 @@ main proc
 	mov ebp, esp
 	sub esp, sizeof dword * 3
 
+	; save non-volatile registers
 	mov dword ptr [ebp+r_ebx], ebx
 	mov dword ptr [ebp+r_esi], esi
 	mov dword ptr [ebp+r_edi], edi
@@ -193,20 +210,18 @@ main proc
 	; check if the program is executed as a DLL
 	; this is an heuristics and is based on the input parameters
 	call get_module_base
-	mov esi, eax
-	mov eax, dword ptr [ebp+arg0]
-	cmp eax, esi ; hModule != module base ~> is an EXE
+	cmp dword ptr [ebp+arg0], eax ; hModule != module base ~> is an EXE
 	jne @run_as_executable
 
-	mov eax, dword ptr [ebp+arg2]
-	cmp eax, 0h ; lpReserver == 0
+	; second heuristic: lpReserver == 0 ?
+	cmp dword ptr [ebp+arg2], 0h
 	jne @run_as_executable
 
-	invoke run_as_dll, dword ptr [ebp+arg1]
+	invoke run_as_dll, dword ptr [ebp+arg0], dword ptr [ebp+arg1], dword ptr [ebp+arg2]
 	jmp @exit
 
 @run_as_executable:
-	call run_as_executable
+	invoke run_as_executable, dword ptr [ebp+arg0], dword ptr [ebp+arg1]
 
 @exit:	
 	mov ebx, dword ptr [ebp+r_ebx]

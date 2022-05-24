@@ -26,7 +26,6 @@ LockResource proto hResData:ptr void
 ReadFile proto hFile:ptr void, lpBuffer:ptr void, nNumberOfBytesToRead:dword, lpNumberOfBytesRead:ptr dword, lpOverlapped:ptr void
 SetConsoleMode proto hConsoleHandle:ptr void, dwMode:dword
 SizeofResource proto hModule:ptr void, hResInfo:ptr void
-;snprintf proto C buffer:ptr char, count:ptr void, format:ptr char, args:vararg
 UpdateResourceA proto hUpdate:ptr void, lpType:ptr char, lpName:ptr char, wLanguage:word, lpData:ptr void, cb:dword
 VirtualAlloc proto lpAddress:ptr void, dwSize:ptr void, flAllocationType:dword, flProtect:dword
 VirtualFree proto lpAddress:ptr void, dwSize:ptr void, dwFreeType:dword

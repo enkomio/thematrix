@@ -188,6 +188,7 @@
     <None Include="x86_def.inc" />
     <None Include="x86_hook_engine.inc" />
     <None Include="x86_main.inc" />
+    <None Include="x86_memory.inc" />
     <None Include="x86_pe.inc" />
     <None Include="x86_run.inc" />
     <None Include="x86_utility.inc" />

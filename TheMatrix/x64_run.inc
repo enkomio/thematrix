@@ -11,7 +11,6 @@ load_embedded_binary proc frame
 
 	_CreateFrame leb_,LOCALS_SIZE,0,rsi,rdi,r14,r15
 	_EndProlog
-
 	_AllocHomeArea
 
 	call get_module_base
@@ -80,3 +79,79 @@ load_embedded_binary proc frame
 	xor rax, rax
 	jmp @exit
 load_embedded_binary endp
+
+;
+; Run the embedded binary
+;	Args: The arguments might vary according to how the binary is invoked (.DLL or .EXE)
+;	Ret: The PE base address on success, NULL otherwise
+;
+run_binary proc frame
+	_CreateFrame rb_,LOCALS_SIZE
+	_EndProlog
+	_AllocHomeArea
+
+	mov qword ptr rb_OffsetHomeRCX[rbp], rcx
+	mov qword ptr rb_OffsetHomeRDX[rbp], rdx
+	mov qword ptr rb_OffsetHomeR8[rbp], r8
+	mov qword ptr rb_OffsetHomeR9[rbp], r9
+
+	; first load the embedded PE binary
+	call load_embedded_binary
+	test rax, rax
+	jz @fail
+	mov qword ptr LOCALS.Local1[rbp], rax
+
+	; hook functions. This must be done before the embedded binary is loaded,
+	; since in x64 we use EAT hooking. If not done in this way, the resolved
+	; functions will have the real values in the IAT and not the hooked ones.
+	mov rcx, qword ptr LOCALS.Local2[rbp]
+	call hooks_init
+	test rax, rax
+	jz @fail
+
+	; load the PE in memory
+	mov rcx, qword ptr LOCALS.Local1[rbp]
+	call pe_load
+	test rax, rax
+	jz @fail
+	mov qword ptr LOCALS.Local2[rbp], rax
+
+	; cleanup
+	mov r8, MEM_DECOMMIT
+	xor rdx, rdx
+	mov rcx, qword ptr LOCALS.Local1[rbp]
+	call VirtualFree
+	test rax, rax
+	jz @fail	
+
+	; flush instructions
+	xor r8, r8
+	xor rdx, rdx
+	mov rcx, -1
+	call FlushInstructionCache
+
+	; restore arguments
+	mov rcx, qword ptr rb_OffsetHomeRCX[rbp]
+	mov rdx, qword ptr rb_OffsetHomeRDX[rbp]
+	mov r8, qword ptr rb_OffsetHomeR8[rbp]
+	mov r9, qword ptr rb_OffsetHomeR9[rbp]
+
+	; call OEP
+	mov r10, qword ptr LOCALS.Local2[rbp]
+	mov eax, IMAGE_DOS_HEADER.e_lfanew[r10]
+	add rax, r10
+	mov eax, IMAGE_NT_HEADERS64.OptionalHeader.AddressOfEntryPoint[rax]	
+	add rax, r10
+	call rax
+
+	; return base address
+	mov rax, qword ptr LOCALS.Local2[rbp]
+
+@exit:
+	_DeleteFrame
+	ret
+
+@fail:
+	xor rax, rax
+	jmp @exit
+run_binary endp

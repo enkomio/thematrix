@@ -38,7 +38,7 @@ print_buffer proc frame
 print_buffer endp
 
 ;
-; Return the string length in ECX
+; Return the string length
 ;	Args: <string>
 ;	Ret: The length of the string, until a max of 0xffff bytes
 ;
@@ -70,11 +70,11 @@ print_line proc frame
 	_EndProlog
 	_AllocHomeArea
 
-	mov qword ptr slen_OffsetHomeRCX[rbp], rcx	
+	mov qword ptr pl_OffsetHomeRCX[rbp], rcx	
 
 	call strlen
 	mov rdx, rax
-	mov rcx, qword ptr slen_OffsetHomeRCX[rbp]	
+	mov rcx, qword ptr pl_OffsetHomeRCX[rbp]	
 	call print_buffer
 
 	_DeleteFrame
