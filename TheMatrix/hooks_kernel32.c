@@ -47,7 +47,7 @@ LPVOID __stdcall VirtualFree_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeT
 	while (m) {
 		if (m->address == lpAddress) {
 			char name[MAX_PATH] = { 0 };
-			snprintf(name, sizeof(name), "mem_%llx_%lld", (uint64_t)lpAddress, m->size);
+			snprintf(name, sizeof(name), "VirtualFree_%llx_%d", (uint64_t)lpAddress, m->size);
 			log_data(m->size, lpAddress, name);
 			break;
 		}
