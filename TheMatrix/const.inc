@@ -1,4 +1,4 @@
-g_string_DllRegisterServer byte "DllRegisterServe"
+g_string_DllRegisterServer byte "DllRegisterServer", 0h
 g_string_add_opt byte '-',0h,'a',0h,'d',0h,'d',0h ; "-add" unicode 
 g_string_file_create byte "Activator file created", 0h
 g_string_load_error byte "Resource file not found. Please run it with '-add' option first", 0h
@@ -29,3 +29,5 @@ IMAGE_ORDINAL_FLAG32 equ 080000000h
 IMAGE_BASE_RELOCATIONENTRY record _Type:4, _Offset:12
 HEAP_ZERO_MEMORY equ 8h
 STD_OUTPUT_HANDLE equ -11
+FILE_BEGIN equ 0h
+INVALID_SET_FILE_POINTER equ -1

@@ -9,7 +9,7 @@ add_resource proc frame
 	ar_buffer EQU LOCALS.Local3
 	ar_hRes EQU LOCALS.Local4
 
-	_CreateFrame ar_,LOCALS_SIZE
+	_CreateFrame ar_,LOCALS_SIZE,0,rdi
 	_EndProlog	
 
 	mov qword ptr ar_OffsetHomeRCX[rbp], rcx
@@ -100,7 +100,7 @@ add_resource proc frame
 	mov rax, 1
 
 @exit:
-	_DeleteFrame
+	_DeleteFrame rdi
 	ret
 
 @fail:
@@ -109,18 +109,35 @@ add_resource proc frame
 add_resource endp
 
 ;
-; Clone the currently executing file
-;	Args: None
+; Clone the currently executing file considering the extension of the file to embed
+;	Args: <file path>
 ;	Ret: The name of the cloned file
 ; 
 clone_file proc frame
-	_CreateFrame cf_,LOCALS_SIZE,0,rdi
+	_CreateFrame cf_,LOCALS_SIZE,0,rdi,rsi,rbx
 	_EndProlog
 	_AllocHomeArea
 
 	mov qword ptr cf_OffsetHomeRCX[rbp], rcx
 	mov qword ptr cf_OffsetHomeRDX[rbp], rdx
 	mov qword ptr cf_OffsetHomeR8[rbp], r8
+
+	; check if the file to embed is a dll
+	mov rax, 06c006c0064002e00h
+	mov rdi, rcx
+	mov rcx, 255h
+@@:
+	cmp qword ptr [rdi], rax
+	je @f
+	inc rdi
+	loop @b
+@@:
+	
+	test rcx, rcx
+	mov edi, 'lld.'
+	mov ecx, 'exe.'
+	cmovnz ecx, edi
+	mov qword ptr LOCALS.Local3[rbp], rcx
 
 	; alloc memory for original file name
 	mov rcx, 512h
@@ -158,13 +175,13 @@ clone_file proc frame
 	xor rax, rax
 	mov rcx, 512h
 	repnz scasb
-	sub rdi, 5
-	mov eax, dword ptr [rdi]
-	inc rdi
+	sub rdi, 4
 	mov qword ptr [rdi], 'liub'
-	mov byte ptr [rdi+4], 'd'
-	add rdi, 5
-	mov dword ptr [rdi], eax	
+	add rdi, 4
+	mov byte ptr [rdi], 'd'
+	inc rdi
+	mov rax, qword ptr LOCALS.Local3[rbp]
+	mov dword ptr [rdi], eax
 
 	; now I can copy the file
 	xor r8, r8
@@ -178,11 +195,92 @@ clone_file proc frame
 	mov rcx, qword ptr LOCALS.Local1[rbp]
 	call heap_free
 
+	; if the file to embed is a DLL I have to change the File Header Characteristics
+	cmp dword ptr LOCALS.Local3[rbp], 'lld.'
+	jne @f
+
+	; read the file content
+	push 0h
+	push 0h
+	push OPEN_EXISTING
+	xor r9, r9
+	xor r8, r8
+	mov rdx, GENERIC_READ_WRITE
+	mov rcx, qword ptr LOCALS.Local2[rbp]
+	_AllocHomeArea
+	call CreateFileA
+	test rax, rax
+	jz @fail
+	mov rsi, rax ; save handle
+
+	xor rdx, rdx
+	mov rcx, rsi
+	call GetFileSize
+	cmp rax, INVALID_FILE_SIZE
+	je @fail
+	mov rbx, rax ; save file size
+
+	; allocate space for the file content
+	call GetProcessHeap
+	mov rcx, rax
+	mov rdx, HEAP_ZERO_MEMORY
+	mov r8, rbx
+	call HeapAlloc
+	test rax, rax
+	jz @fail
+	mov rdi, rax ; save buffer ptr
+
+	; read the file content
+	push 0
+	lea r9, qword ptr LOCALS.Local4[rbp]
+	mov r8, rbx
+	mov rdx, rdi
+	mov rcx, rsi
+	_AllocHomeArea
+	call ReadFile
+	test rax, rax
+	jz @fail	
+
+	; go to PE
+	mov eax, IMAGE_DOS_HEADER.e_lfanew[rdi]
+	add rax, rdi
+
+	; update the Characteristics
+	mov cx, word ptr IMAGE_NT_HEADERS64.FileHeader.Characteristics[rax]
+	or cx, IMAGE_FILE_DLL
+	mov word ptr IMAGE_NT_HEADERS64.FileHeader.Characteristics[rax], cx
+
+	; go to the start of the file
+	mov rcx, rsi
+	xor rdx, rdx
+	xor r8, r8
+	mov r9, FILE_BEGIN
+	call SetFilePointer
+	cmp rax, INVALID_SET_FILE_POINTER
+	je @fail
+
+	; write back the result
+	mov rcx, rsi
+	mov rdx, rdi
+	mov r8, rbx
+	lea r9, qword ptr LOCALS.Local4[rbp]
+	push 0h
+	_AllocHomeArea
+	call WriteFile
+	test rax, rax
+	jz @fail	
+
+	; close handle to file
+	mov rcx, rsi
+	call CloseHandle
+@@:
+
+
 	; return the name of the cloned file
 	mov rax, qword ptr LOCALS.Local2[rbp]
 
 @exit:
-	_DeleteFrame rdi
+	_DeleteFrame rdi,rsi,rbx
 	ret
 
 @fail:

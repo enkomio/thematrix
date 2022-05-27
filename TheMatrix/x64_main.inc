@@ -99,6 +99,8 @@ DllRegisterServer proc export frame
 	jz @fail
 
 	; call the exported function
+	mov eax, dword ptr [rax]
+	add rax, g_base_address
 	call rax
 
  @exit:
@@ -223,3 +225,12 @@ main proc frame
 	_DeleteFrame
 	ret
 main endp
+
+DllMain proc frame
+	_CreateFrame dllm_
+	_EndProlog
+	_AllocHomeArea
+	call main
+	_DeleteFrame
+	ret
+DllMain endp

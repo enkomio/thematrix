@@ -25,6 +25,7 @@ LoadResource proto hModule:ptr void, hResInfo:ptr void
 LockResource proto hResData:ptr void
 ReadFile proto hFile:ptr void, lpBuffer:ptr void, nNumberOfBytesToRead:dword, lpNumberOfBytesRead:ptr dword, lpOverlapped:ptr void
 SetConsoleMode proto hConsoleHandle:ptr void, dwMode:dword
+SetFilePointer proto hFile:ptr void, lDistanceToMove:ptr void, lpDistanceToMoveHigh:ptr void, dwMoveMethod:dword
 SizeofResource proto hModule:ptr void, hResInfo:ptr void
 UpdateResourceA proto hUpdate:ptr void, lpType:ptr char, lpName:ptr char, wLanguage:word, lpData:ptr void, cb:dword
 VirtualAlloc proto lpAddress:ptr void, dwSize:ptr void, flAllocationType:dword, flProtect:dword

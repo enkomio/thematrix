@@ -100,6 +100,8 @@ DllRegisterServer proc C export
 	jz @fail
 
 	; call the exported function
+	mov eax, dword ptr [eax]
+	add eax, g_base_address
 	call eax
 
 	mov eax, 1h
