@@ -59,59 +59,74 @@ add_resource endp
 
 ;
 ; Clone the currently executing file
-;	Args: None
+;	Args: <file path>
 ;	Ret: The name of the cloned file
 ;
-clone_file proc
+clone_file proc file_to_add:ptr char
 	local orig_filename:ptr char
 	local build_filename:ptr char
+	local file_extension:ptr char
 
-	; get my filename
+	; check if the file to embed is a dll
+	mov eax, 064002e00h
+	mov edi, file_to_add
+	mov ecx, 255h
+@find_extension:
+	cmp dword ptr [edi], eax
+	je @f
+	inc edi
+	loop @find_extension
+	jmp @fail
+@@:
+	mov eax, 06c006c00h
+	add edi, sizeof dword
+	cmp dword ptr [edi], eax
+	jne @find_extension
+	
+	test ecx, ecx
+	mov edi, 'lld.'
+	mov ecx, 'exe.'
+	cmovnz ecx, edi
+	mov file_extension, ecx
+
+	; alloc memory for original file name
 	invoke heap_alloc, 512h
 	test eax, eax
 	jz @fail
 	mov orig_filename, eax
 
-	push 512h
-	push orig_filename
-	push 0h
-	call GetModuleFileNameA
-
-	cld
-
-	; create the build filename
+	; alloc memory for the clone file name
 	invoke heap_alloc, 512h
 	test eax, eax
 	jz @fail
 	mov build_filename, eax
 
-	; compute name length
-	mov edi, orig_filename
-	mov ecx, 255h
-	xor eax, eax
-	repnz scasb
-	sub edi, orig_filename
-	mov ecx, edi
-	
-	; copy the filename
+	; get executable file name (original file name)
+	invoke GetModuleFileNameA, 0h, orig_filename, 512h
+	test eax, eax
+	jz @fail
+
+	; copy file name
+	mov ecx, 512h
 	mov esi, orig_filename
 	mov edi, build_filename
-@@:
-	lodsb
-	stosb
-	loop @b
+	rep movsb
 
-	; set .build.exe extension
-	sub edi, 4h	
-	mov dword ptr [edi], 'liub'
-	mov dword ptr [edi + 4], 'xe.d'
-	mov byte ptr [edi + 8], 'e'
+	; change the extension from '.<EXT>' to '.build.<EXT>' (I suppose it has 3 chars extension)
+	invoke string_len, orig_filename
+	test eax, eax
+	jz @fail
+	mov edx, build_filename
+	lea edx, dword ptr [edx + eax - 4]
+	mov dword ptr [edx], 'liub'
+	add edx, 4
+	mov byte ptr [edx], 'd'
+	inc edx
+	mov eax, file_extension
+	mov dword ptr [edx], eax
 
 	; copy the file
-	push 0h
-	push build_filename
-	push orig_filename
-	call CopyFileA
+	invoke CopyFileA, orig_filename, build_filename, 0h
 	test eax, eax
 	jz @fail
 
@@ -136,7 +151,7 @@ create_artifact proc file_to_add:ptr char
 	local cloned_filename:ptr char
 
 	; clone my file 
-	invoke clone_file
+	invoke clone_file, file_to_add
 	test eax, eax
 	jz @fail
 	mov cloned_filename, eax
