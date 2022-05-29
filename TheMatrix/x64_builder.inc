@@ -219,11 +219,8 @@ clone_file proc frame
 	mov rbx, rax ; save file size
 
 	; allocate space for the file content
-	call GetProcessHeap
 	mov rcx, rax
-	mov rdx, HEAP_ZERO_MEMORY
-	mov r8, rbx
-	call HeapAlloc
+	call heap_alloc
 	test rax, rax
 	jz @fail
 	mov rdi, rax ; save buffer ptr
@@ -271,6 +268,9 @@ clone_file proc frame
 	; close handle to file
 	mov rcx, rsi
 	call CloseHandle
+
+	mov rcx, rdi
+	call heap_free
 @@:
 
 
