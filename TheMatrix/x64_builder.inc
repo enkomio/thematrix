@@ -161,13 +161,11 @@ clone_file proc frame
 	test rax, rax
 	jz @fail
 
-	; get executable file name (cloned file name)
-	mov r8, 512h
-	mov rdx, qword ptr LOCALS.Local2[rbp]
-	xor rcx, rcx
-	call GetModuleFileNameA
-	test rax, rax
-	jz @fail
+	; copy executable file name (cloned file name)
+	mov rcx, 512h
+	mov rdi, qword ptr LOCALS.Local2[rbp]
+	mov rsi, qword ptr LOCALS.Local1[rbp]
+	rep movsb
 
 	; change the extension from '.<EXT>' to '.build.<EXT>' (I suppose it has 3 chars extension).
 	cld
