@@ -1,9 +1,9 @@
 ;
-; Compute the string length
+; Compute the ascii string length
 ;	Args: <string buffer>
 ;	Ret: string length
 ;
-string_len proc frame
+ascii_string_len proc frame
 	_CreateFrame stringlen_,0,0,rdi
 	_EndProlog
 	mov qword ptr stringlen_OffsetHomeRCX[rbp], rcx
@@ -18,7 +18,32 @@ string_len proc frame
 
 	_DeleteFrame rdi
 	ret
-string_len endp
+ascii_string_len endp
+
+;
+; Compute the unicode string length (in bytes)
+;	Args: <string buffer>
+;	Ret: string length
+;
+unicode_string_len proc frame
+	_CreateFrame stringlen_
+	_EndProlog
+	mov qword ptr stringlen_OffsetHomeRCX[rbp], rcx
+
+	mov rdx, rcx
+	xor rcx, rcx
+@unicode_string_len_loop:
+	mov ax, word ptr [rdx]	
+	inc rdx
+	inc rcx
+	test ax, ax
+	jnz @unicode_string_len_loop
+	dec rcx
+	mov rax, rcx
+
+	_DeleteFrame
+	ret
+unicode_string_len endp
 
 ;
 ; Clone the given string
@@ -32,7 +57,7 @@ string_clone proc frame
 	mov qword ptr stringcl_OffsetHomeRCX[rbp], rcx
 
 	; compute string length for allocation
-	call string_len
+	call ascii_string_len
 	inc rax
 	mov qword ptr LOCALS.Local1[rbp], rax
 	
@@ -73,11 +98,11 @@ string_equals proc frame
 	mov qword ptr stringeq_OffsetHomeRDX[rbp], rdx
 
 	; compare the two strings length
-	call string_len
+	call ascii_string_len
 	mov rsi, rax
 
 	mov rcx, rdx
-	call string_len
+	call ascii_string_len
 	cmp rax, rsi
 	jne @not_equal
 

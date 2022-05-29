@@ -71,22 +71,27 @@ clone_file proc file_to_add:ptr char
 	local file_buffer:dword
 	local ncount:dword
 
+	invoke unicode_string_len, file_to_add
+	test eax, eax
+	jz @fail
+	mov ecx, eax
+
 	; check if the file to embed is a dll
 	mov eax, 064002e00h
-	mov edi, file_to_add
-	mov ecx, 255h
+	mov edi, file_to_add	
 @find_extension:
 	cmp dword ptr [edi], eax
 	je @f
 	inc edi
 	loop @find_extension
-	jmp @fail
+	jmp @set_extension
 @@:
 	mov eax, 06c006c00h
 	add edi, sizeof dword
 	cmp dword ptr [edi], eax
 	jne @find_extension
 	
+@set_extension:
 	test ecx, ecx
 	mov edi, 'lld.'
 	mov ecx, 'exe.'
@@ -117,7 +122,7 @@ clone_file proc file_to_add:ptr char
 	rep movsb
 
 	; change the extension from '.<EXT>' to '.build.<EXT>' (I suppose it has 3 chars extension)
-	invoke string_len, orig_filename
+	invoke ascii_string_len, orig_filename
 	test eax, eax
 	jz @fail
 	mov edx, build_filename

@@ -122,17 +122,21 @@ clone_file proc frame
 	mov qword ptr cf_OffsetHomeRDX[rbp], rdx
 	mov qword ptr cf_OffsetHomeR8[rbp], r8
 
+	call unicode_string_len
+	test rax, rax
+	jz @fail
+	mov rcx, rax
+
 	; check if the file to embed is a dll
 	mov rax, 06c006c0064002e00h
-	mov rdi, rcx
-	mov rcx, 255h
+	mov rdi, qword ptr cf_OffsetHomeRCX[rbp]
 @@:
 	cmp qword ptr [rdi], rax
-	je @f
+	je @set_extension
 	inc rdi
 	loop @b
-@@:
 	
+@set_extension:
 	test rcx, rcx
 	mov edi, 'lld.'
 	mov ecx, 'exe.'

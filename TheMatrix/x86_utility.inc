@@ -1,9 +1,9 @@
 ;
-; Compute the string length
+; Compute the ascii string length
 ;	Args: <string buffer>
 ;	Ret: string length
 ;
-string_len proc buffer:dword
+ascii_string_len proc buffer:dword
 	push edi ; save value
 	xor eax, eax
 	mov edi, buffer
@@ -14,7 +14,26 @@ string_len proc buffer:dword
 	mov eax, ecx
 	pop edi ; restore value
 	ret
-string_len endp
+ascii_string_len endp
+
+;
+; Compute the unicode string length (in bytes)
+;	Args: <string buffer>
+;	Ret: string length
+;
+unicode_string_len proc buffer:dword
+	xor ecx, ecx
+	mov edx, buffer
+@unicode_string_len_loop:
+	mov ax, word ptr [edx]	
+	inc edx
+	inc ecx
+	test ax, ax
+	jnz @unicode_string_len_loop
+	dec ecx
+	mov eax, ecx
+	ret
+unicode_string_len endp
 
 ;
 ; Clone the given string
@@ -25,7 +44,7 @@ string_clone proc buffer:dword
 	local l:dword
 	local cloned_string:dword
 
-	invoke string_len, buffer
+	invoke ascii_string_len, buffer
 	inc eax
 	mov l, eax
 
@@ -62,10 +81,10 @@ string_equals proc str1:dword, str2:dword
 	mov l_edi, edi
 
 	; compare the two strings length
-	invoke string_len, str1
+	invoke ascii_string_len, str1
 	mov ecx, eax
 
-	invoke string_len, str2
+	invoke ascii_string_len, str2
 	cmp eax, ecx
 	jne @not_equal	
 
