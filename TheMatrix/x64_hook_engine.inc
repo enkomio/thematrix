@@ -19,7 +19,9 @@ HOOK_DEF ends
 trampoline_code_size EQU $ - @trampoline_code_start
 
 ;
-; This funcion uses EAT hooking.
+; This funcion uses EAT hooking with a trampoline. To be able to call the original function
+; the function pointer is stored in the trampoline. To avoid to corrupt the stack the original 
+; function address is saved in _NT_TIB.ArbitraryUserPointer.
 ;	Args: <lib_name:ptr char> <func_name:ptr char> <hook:ptr HOOK_DEF>
 ;	Ret: TRUE on success, FALSE otherwise
 ;
