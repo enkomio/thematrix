@@ -11,6 +11,13 @@ HOOK_DEF struct
 	saved_reg4		qword ?
 HOOK_DEF ends
 
+@trampoline_code_start:
+	mov rax, 011223344aabbccddh ; store the address of the origin function
+	mov qword ptr gs:[28h], rax
+	mov rax, 011223344aabbccddh ; hook function address
+	jmp rax
+trampoline_code_size EQU $ - @trampoline_code_start
+
 ;
 ; This funcion uses EAT hooking.
 ;	Args: <lib_name:ptr char> <func_name:ptr char> <hook:ptr HOOK_DEF>
@@ -94,23 +101,19 @@ hook_set proc frame
 	jz @fail
 
 	; write the trampoline to the code cave
+	mov rcx, trampoline_code_size
+	mov rdi, qword ptr hset_cave_va[rbp]
+	mov rsi, offset @trampoline_code_start
+	rep movsb
+
+	; write the address of the hook function in the trampoline
 	mov r10, qword ptr hset_cave_va[rbp]
-	mov word ptr [r10], 0b848h
 	add r10, 2
+	add r10, sizeof qword
+	add r10, 0bh
 	mov r8, qword ptr hset_OffsetHomeR8[rbp]
 	mov r8, qword ptr HOOK_DEF.hook_func[r8]
-	mov qword ptr [r10], r8
-	add r10, sizeof qword
-	mov word ptr [r10], 0e0ffh
-
-	; set back protection
-	lea r9, qword ptr hset_protection[rbp]
-	mov r8, qword ptr hset_protection[rbp]
-	mov rdx, 0fh
-	mov rcx, qword ptr hset_cave_va[rbp]
-	call VirtualProtect
-	test rax, rax
-	jz @fail
+	mov qword ptr [r10], r8 ; write the address of the hook function	
 
 	; resolve the exported function RVA
 	mov rdx, qword ptr hset_OffsetHomeRDX[rbp]
@@ -126,10 +129,26 @@ hook_set proc frame
 	add rax, qword ptr hset_hDll[rbp]	
 	mov HOOK_DEF.orig_func[r8], rax
 
+	; write the address of the original function function
+	mov r10, qword ptr hset_cave_va[rbp]
+	add r10, 2 
+	mov r8, qword ptr hset_OffsetHomeR8[rbp]
+	mov r8, qword ptr HOOK_DEF.orig_func[r8]
+	mov qword ptr [r10], r8 ; write the address of the hook function	
+
+	; set back protection
+	lea r9, qword ptr hset_protection[rbp]
+	mov r8, qword ptr hset_protection[rbp]
+	mov rdx, 0fh
+	mov rcx, qword ptr hset_cave_va[rbp]
+	call VirtualProtect
+	test rax, rax
+	jz @fail
+
 	; set the HOOK_DEF trampoline properties
 	mov rax, qword ptr hset_cave_va[rbp]
 	mov HOOK_DEF.trampoline[r8], rax
-	mov HOOK_DEF.trampoline_size[r8], 0fh
+	mov HOOK_DEF.trampoline_size[r8], trampoline_code_size
 
 	; unprotect code
 	lea r9, qword ptr hset_protection[rbp]
@@ -230,35 +249,11 @@ hook_add endp
 
 ;
 ; Call the original function
-;	Args: <HOOK_DEF ptr>, <varargs arguments...>
+;	Args: <varargs arguments...>
 ;	Ret: the value of the hooked function
 ;
 hook_call_original proc
-	; save HOOK_DEF ptr
-	mov r10, rcx
-	
-	; reconstruct arguments, by removing the first one
-	mov rcx, rdx
-	mov rdx, r8
-	mov r8, r9
-
-	; save return value
-	pop r11
-
-	; trash first home space, since the 
-	; first stack argument was moved to R9
-	pop r9
-
-	; restore return value
-	push r11
-
-	; set last register argument
-	mov r9, qword ptr [rsp + 4 * sizeof qword]
-		
-	; call original function
-	mov r10, HOOK_DEF.orig_func[r10]
-	jmp r10
-
-	; this code should never be executed
-	ret
+	; the address of the original function was saved in gs:[0x28] (ArbitraryUserPointer), just call it
+	mov rax, gs:[028h]
+	jmp rax
 hook_call_original endp

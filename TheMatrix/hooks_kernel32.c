@@ -2,9 +2,6 @@
 #include "hooks.h"
 #include "utility.h"
 
-static hook_info* g_VirtualFree_hook = 0;
-static hook_info* g_VirtualAlloc_hook = 0;
-
 typedef struct mem_allocated mem_allocated;
 struct mem_allocated {
 	LPVOID address;
@@ -17,7 +14,7 @@ static mem_allocated* g_mem_tail = 0;
 
 LPVOID __stdcall VirtualAlloc_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
-	LPVOID res = hook_call_original(g_VirtualAlloc_hook, lpAddress, dwSize, flAllocationType, flProtect);
+	LPVOID res = hook_call_original(lpAddress, dwSize, flAllocationType, flProtect);
 	if (res) {
 		// save details of the allocation size
 		if (!g_mem_root) {
@@ -54,13 +51,13 @@ LPVOID __stdcall VirtualFree_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeT
 		m = m->next;
 	}
 
-	LPVOID res = hook_call_original(g_VirtualFree_hook, lpAddress, dwSize, dwFreeType);
+	LPVOID res = hook_call_original(lpAddress, dwSize, dwFreeType);
 	return res;
 }
 
 int hooks_kernel32(void)
 {
-	g_VirtualFree_hook = hook_add("Kernel32.dll", "VirtualFree", VirtualFree_hook);
-	g_VirtualAlloc_hook = hook_add("Kernel32.dll", "VirtualAlloc", VirtualAlloc_hook);
+	hook_add("Kernel32.dll", "VirtualFree", VirtualFree_hook);
+	hook_add("Kernel32.dll", "VirtualAlloc", VirtualAlloc_hook);
 	return 0;
 }

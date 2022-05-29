@@ -3,14 +3,9 @@
 #include "hooks.h"
 #include "utility.h"
 
-static hook_info* g_BCryptEncrypt_hook = 0;
-static hook_info* g_BCryptDecrypt_hook = 0;
-static hook_info* g_BCryptImportKeyPair_hook = 0;
-
 LPVOID __stdcall hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
 {	
 	LPVOID ret = hook_call_original(
-		g_BCryptDecrypt_hook,
 		hKey,
 		pbInput,
 		cbInput,
@@ -43,7 +38,6 @@ LPVOID __stdcall hook_BCryptEncrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULON
 	}	
 
 	LPVOID ret = hook_call_original(
-		g_BCryptEncrypt_hook,
 		hKey,
 		pbInput,
 		cbInput,
@@ -66,7 +60,6 @@ LPVOID __stdcall hook_BCryptImportKeyPair(BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_K
 	log_data(cbInput, pbInput, name);
 
 	LPVOID ret = hook_call_original(
-		g_BCryptImportKeyPair_hook,
 		hAlgorithm,
 		hImportKey,
 		pszBlobType,
@@ -80,9 +73,8 @@ LPVOID __stdcall hook_BCryptImportKeyPair(BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_K
 
 int hooks_bcrypt(void)
 {
-	g_BCryptEncrypt_hook = hook_add("Bcrypt.dll", "BCryptEncrypt", hook_BCryptEncrypt);
-	g_BCryptDecrypt_hook = hook_add("Bcrypt.dll", "BCryptDecrypt", hook_BCryptDecrypt);
-	g_BCryptImportKeyPair_hook = hook_add("Bcrypt.dll", "BCryptImportKeyPair", hook_BCryptImportKeyPair);
-
+	hook_add("Bcrypt.dll", "BCryptEncrypt", hook_BCryptEncrypt);
+	hook_add("Bcrypt.dll", "BCryptDecrypt", hook_BCryptDecrypt);
+	hook_add("Bcrypt.dll", "BCryptImportKeyPair", hook_BCryptImportKeyPair);
 	return 0;
 }
