@@ -19,9 +19,98 @@ HOOK_DEF ends
 trampoline_code_size EQU $ - @trampoline_code_start
 
 ;
+; Try to find a code cave in the mapped pe_resolve_exported_function
+;	Args: <PE base address>
+;	Ret: code cade VA on success, NULL on error
+;
+find_code_cave proc frame	
+	findcc_hDll EQU LOCALS.Local1 
+	findcc_num_sections EQU LOCALS.Local2
+	findcc_STACK_SIZE EQU LOCALS_SIZE + MEMORY_BASIC_INFORMATION_SIZE
+	_CreateFrame findcc_,findcc_STACK_SIZE,0,rbx,rsi,rdi,r11
+	_EndProlog
+	_AllocHomeArea
+	mov qword ptr hset_OffsetHomeRCX[rbp], rcx
+	mov findcc_hDll[rbp], rcx
+
+	; find a code cave in the DLL (in general at the end of a section)
+	; RCX = number of section, RBX = current section base
+	mov r8d, IMAGE_DOS_HEADER.e_lfanew[rcx]
+	add r8, rcx
+	movzx rcx, IMAGE_NT_HEADERS64.FileHeader.NumberOfSections[r8]
+	
+	movzx rbx, IMAGE_NT_HEADERS64.FileHeader.SizeOfOptionalHeader[r8]
+	add rbx, sizeof IMAGE_FILE_HEADER + sizeof IMAGE_NT_HEADERS64.Signature
+	add rbx, r8
+
+@check_section_for_cave:
+	; update section index
+	mov findcc_num_sections[rbp], rcx
+
+	; get pointer to section data		
+	mov esi, IMAGE_SECTION_HEADER.VirtualAddress[rbx]
+	add rsi, qword ptr findcc_hDll[rbp]
+
+	; compute section allocation size
+	mov r8, MEMORY_BASIC_INFORMATION_SIZE
+	lea rdx, LOCALS[rbp + LOCALS_SIZE] ; pointer to MEMORY_BASIC_INFORMATION
+	mov rcx, rsi
+	call VirtualQuery
+	test rax, rax
+	jz @fail
+
+	; compute boundaries: section end (RSI) and allocation end (RDI).
+	mov r9d, IMAGE_SECTION_HEADER.VirtualSize[rbx]
+	add rsi, r9
+
+	lea rax, LOCALS[rbp + LOCALS_SIZE] ; pointer to MEMORY_BASIC_INFORMATION
+	mov rdi, MEMORY_BASIC_INFORMATION.BaseAddress[rax]
+	add rdi, MEMORY_BASIC_INFORMATION.RegionSize[rax]
+	sub rdi, trampoline_code_size
+		
+@search_cave:
+	; verify that I haven't reached the section end
+	cmp rsi, rdi
+	jae @check_next_section
+
+	; check if I have a slack of size trampoline_code_size of zero bytes
+	mov rcx, trampoline_code_size
+	xor r11, r11
+
+@@:	
+	movzx rax, byte ptr [rsi+rcx]
+	add r11, rax
+	loop @b	
+	test r11, r11
+	jz @cave_found
+	add rsi, trampoline_code_size
+	jmp @search_cave
+
+@check_next_section:
+	; no cave in this section, check the next one
+	add rbx, sizeof IMAGE_SECTION_HEADER	
+	mov rcx, findcc_num_sections[rbp]
+	loop @check_section_for_cave
+	jmp @fail
+
+@cave_found:	
+	; return the code cave VA
+	mov rax, rsi
+
+@exit:
+	_DeleteFrame rbx,rsi,rdi,r11
+	ret
+
+@fail:
+	xor rax, rax
+	jmp @exit
+find_code_cave endp
+
+;
 ; This funcion uses EAT hooking with a trampoline. To be able to call the original function
 ; the function pointer is stored in the trampoline. To avoid to corrupt the stack the original 
-; function address is saved in _NT_TIB.ArbitraryUserPointer.
+; function address is saved in _NT_TIB.ArbitraryUserPointer. This implies that hook_call_original
+; *cannot* be called by a different thread.
 ;	Args: <lib_name:ptr char> <func_name:ptr char> <hook:ptr HOOK_DEF>
 ;	Ret: TRUE on success, FALSE otherwise
 ;
@@ -44,60 +133,17 @@ hook_set proc frame
 	jz @fail
 	mov qword ptr hset_hDll[rbp], rax
 
-	; find a code cave in the DLL (in general at the end of a section)
-	; RCX = number of section, RBX = current section base
-	mov r8d, IMAGE_DOS_HEADER.e_lfanew[rax]
-	add r8, rax
-	movzx rcx, IMAGE_NT_HEADERS64.FileHeader.NumberOfSections[r8]
-
-	movzx rbx, IMAGE_NT_HEADERS64.FileHeader.SizeOfOptionalHeader[r8]
-	add rbx, sizeof IMAGE_FILE_HEADER + sizeof IMAGE_NT_HEADERS64.Signature
-	add rbx, r8
-
-@check_section_for_cave:
-	; get pointer to section data		
-	mov esi, IMAGE_SECTION_HEADER.VirtualAddress[rbx]
-	add rsi, qword ptr hset_hDll[rbp]
-
-	; compute section allocation size
-	mov r8, MEMORY_BASIC_INFORMATION_SIZE
-	lea rdx, LOCALS[rbp + LOCALS_SIZE] ; pointer to MEMORY_BASIC_INFORMATION
-	mov rcx, rsi
-	call VirtualQuery
+	mov rcx, rax
+	call find_code_cave
 	test rax, rax
 	jz @fail
-
-	; compute boundarys, from section end (RSI) to allocation end (RDI).
-	mov r9d, IMAGE_SECTION_HEADER.VirtualSize[rbx]
-	add rsi, r9
-
-	lea rax, LOCALS[rbp + LOCALS_SIZE] ; pointer to MEMORY_BASIC_INFORMATION
-	mov rdi, MEMORY_BASIC_INFORMATION.BaseAddress[rax]
-	add rdi, MEMORY_BASIC_INFORMATION.RegionSize[rax]
-	sub rdi, sizeof xmmword
-	
-@search_cave:
-	; check if the bytes are zero	
-	vmovups xmm0, xmmword ptr [rsi]
-	ptest xmm0, xmm0
-	jz @cave_found
-
-	inc rsi
-	cmp rsi, rdi
-	jb @search_cave
-
-	; no cave in this section, check the next one
-	add rbx, sizeof IMAGE_SECTION_HEADER	
-	loop @check_section_for_cave
-	jmp @fail
-@cave_found:
-	mov qword ptr hset_cave_va[rbp], rsi
+	mov qword ptr hset_cave_va[rbp], rax
 
 	; unprotect code
 	lea r9, qword ptr hset_protection[rbp]
 	mov r8, PAGE_EXECUTE_READWRITE
 	mov rdx, 0fh
-	mov rcx, rsi
+	mov rcx, rax
 	call VirtualProtect
 	test rax, rax
 	jz @fail
@@ -186,7 +232,6 @@ hook_set proc frame
 	xor rax, rax
 	jmp @exit
 hook_set endp
-
 
 ;
 ; Place an hook to the specified function
