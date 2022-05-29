@@ -245,7 +245,7 @@ hook_call_original proc
 	; save return value
 	pop r11
 
-	; trahs first home space, since the 
+	; trash first home space, since the 
 	; first stack argument was moved to R9
 	pop r9
 
