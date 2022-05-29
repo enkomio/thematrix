@@ -6,7 +6,6 @@ This application provide a mechanism to hook Win32 API for tracing purpose.
 2022 (C) Antonio 's4tan' Parata
 
 TODO: 
-* Support -dll command to create a .build.dll file. The created artifact must be a DLL not just a renaming
 * When modifing PEB.Ldr, change the FullDllName and BaseDllName accordintg to the name of the .edata
 !
 
