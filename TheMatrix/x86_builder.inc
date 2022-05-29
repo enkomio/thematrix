@@ -66,6 +66,10 @@ clone_file proc file_to_add:ptr char
 	local orig_filename:ptr char
 	local build_filename:ptr char
 	local file_extension:ptr char
+	local hFile:dword
+	local file_size:dword
+	local file_buffer:dword
+	local ncount:dword
 
 	; check if the file to embed is a dll
 	mov eax, 064002e00h
@@ -130,7 +134,60 @@ clone_file proc file_to_add:ptr char
 	test eax, eax
 	jz @fail
 
+	; clean-up memory
 	invoke heap_free, orig_filename	
+
+	; if the file to embed is a DLL I have to change the File Header Characteristics
+	cmp file_extension, 'lld.'
+	jne @f
+
+	; read the file content
+	invoke CreateFileA, build_filename, GENERIC_READ_WRITE, 0h, 0h, OPEN_EXISTING, 0h, 0h
+	test eax, eax
+	jz @fail
+	mov hFile, eax
+
+	invoke GetFileSize, hFile, 0h
+	cmp eax, INVALID_FILE_SIZE
+	je @fail
+	mov file_size, eax ; save value
+
+	invoke heap_alloc, file_size
+	test eax, eax
+	jz @fail
+	mov file_buffer, eax
+
+	invoke ReadFile, hFile, file_buffer, file_size, addr ncount, 0h
+	test eax, eax
+	jz @fail
+
+	; go to PE
+	mov eax, file_buffer
+	mov eax, IMAGE_DOS_HEADER.e_lfanew[eax]
+	add eax, file_buffer
+
+	; update the Characteristics
+	mov cx, word ptr IMAGE_NT_HEADERS32.FileHeader.Characteristics[eax]
+	or cx, IMAGE_FILE_DLL
+	mov word ptr IMAGE_NT_HEADERS32.FileHeader.Characteristics[eax], cx
+
+	; go to the start of the file
+	invoke SetFilePointer, hFile, 0h, 0h, FILE_BEGIN
+	cmp eax, INVALID_SET_FILE_POINTER
+	je @fail
+
+	; write back the result
+	invoke WriteFile, hFile, file_buffer, file_size, addr ncount, 0h
+	test eax, eax
+	jz @fail
+
+	; close handle to file
+	invoke CloseHandle, hFile
+
+	; clean-up memory
+	invoke heap_free, file_buffer
+
+@@:
 	mov eax, build_filename
 
 @exit:	
