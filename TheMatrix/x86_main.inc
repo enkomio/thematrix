@@ -169,7 +169,12 @@ run_as_executable proc i_argc:dword, i_argv:dword
 
 	mov eax, dword ptr [ebp+argv]
 	mov eax, dword ptr [eax + ecx * sizeof dword]
-	invoke create_artifact, eax
+	push eax ; save value
+	call get_module_base
+	mov edx, DllMain
+	sub edx, eax
+	pop eax ; restore value
+	invoke create_artifact, eax, edx
 	test eax, eax
 	jz @fail
 
@@ -237,3 +242,8 @@ main proc
 	mov eax, 2
 	jmp @exit
 main endp
+
+DllMain proc frame
+	call main
+	ret
+DllMain endp
