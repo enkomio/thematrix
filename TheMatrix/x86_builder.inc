@@ -59,10 +59,10 @@ add_resource endp
 
 ;
 ; Clone the currently executing file
-;	Args: <file path>
+;	Args: <file path>, <DllMain RVA>
 ;	Ret: The name of the cloned file
 ;
-clone_file proc file_to_add:ptr char
+clone_file proc file_to_add:ptr char, DllMain_rva:dword
 	local orig_filename:ptr char
 	local build_filename:ptr char
 	local file_extension:ptr char
@@ -209,11 +209,11 @@ clone_file endp
 ;	Args: <file path>
 ;	Ret: TRUE on success. False otherwise
 ;
-create_artifact proc file_to_add:ptr char
+create_artifact proc file_to_add:ptr char, DllMain_rva:dword
 	local cloned_filename:ptr char
 
 	; clone my file 
-	invoke clone_file, file_to_add
+	invoke clone_file, file_to_add, DllMain_rva
 	test eax, eax
 	jz @fail
 	mov cloned_filename, eax

@@ -13,6 +13,15 @@ HOOK_DEF struct
 	saved_reg4		dword ?
 HOOK_DEF ends
 
+@trampoline_code_start:
+	mov eax, 011223344h ; store the address of the origin function
+	assume fs:nothing
+	mov dword ptr fs:[14h], eax
+	assume fs:error
+	mov eax, 011223344h ; hook function address
+	jmp eax
+trampoline_code_size EQU $ - @trampoline_code_start
+
 ;
 ; This funcion uses the MS hot-patching method.
 ; See https://devblogs.microsoft.com/oldnewthing/20110921-00/?p=9583
@@ -31,7 +40,7 @@ hook_set proc C lib_name:ptr char, func_name:ptr char, hook:ptr HOOK_DEF
 	; set the value
 	mov edi, hook
 	mov HOOK_DEF.orig_func[edi], eax
-	
+		
 	; set my hook	
 	mov edi, eax
 	lea eax, dword ptr [eax-5h]
