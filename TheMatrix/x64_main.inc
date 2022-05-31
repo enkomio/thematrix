@@ -167,6 +167,11 @@ run_as_executable proc frame
 	; create the artifact to run the embedded binary
 	mov rcx, qword ptr LOCALS.Local2[rbp]
 	mov rcx, qword ptr [rcx + rax * sizeof qword]
+	mov qword ptr LOCALS.Local3[rbp], rcx
+	call get_module_base
+	mov rdx, DllMain
+	sub rdx, rax
+	mov rcx, qword ptr LOCALS.Local3[rbp]
 	call create_artifact
 	test rax, rax
 	jz @fail

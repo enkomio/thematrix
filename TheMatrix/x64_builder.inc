@@ -110,7 +110,7 @@ add_resource endp
 
 ;
 ; Clone the currently executing file considering the extension of the file to embed
-;	Args: <file path>
+;	Args: <file path>, <DllMain RVA>
 ;	Ret: The name of the cloned file
 ; 
 clone_file proc frame
@@ -197,7 +197,7 @@ clone_file proc frame
 	mov rcx, qword ptr LOCALS.Local1[rbp]
 	call heap_free
 
-	; if the file to embed is a DLL I have to change the File Header Characteristics
+	; if the file to embed is a DLL I have to change the File Header Characteristics and Entry Point
 	cmp dword ptr LOCALS.Local3[rbp], 'lld.'
 	jne @f
 
@@ -249,6 +249,10 @@ clone_file proc frame
 	or cx, IMAGE_FILE_DLL
 	mov word ptr IMAGE_NT_HEADERS64.FileHeader.Characteristics[rax], cx
 
+	; update entry-point with DllMain rva
+	mov rdx, qword ptr cf_OffsetHomeRDX[rbp]
+	mov dword ptr IMAGE_NT_HEADERS64.OptionalHeader.AddressOfEntryPoint[rax], edx
+
 	; go to the start of the file
 	mov rcx, rsi
 	xor rdx, rdx
@@ -292,7 +296,7 @@ clone_file endp
 
 ;
 ; Create the artifact containing the input binary in the embedded resource
-;	Args: <file path>
+;	Args: <file path>, <DllMain RVA>
 ;	Ret: TRUE on success. False otherwise
 ;
 create_artifact proc frame
@@ -301,8 +305,9 @@ create_artifact proc frame
 	_AllocHomeArea
 
 	mov qword ptr ca_OffsetHomeRCX[rbp], rcx
+	mov qword ptr ca_OffsetHomeRDX[rbp], rdx
 
-	; clone the executable to add the embedded file
+	; clone the executable to add the embedded file	
 	call clone_file
 	test rax, rax
 	jz @fail
