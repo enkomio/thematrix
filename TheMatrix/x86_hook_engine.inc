@@ -15,6 +15,7 @@ HOOK_DEF ends
 
 @trampoline_code_start:
 	mov eax, 011223344h ; store the address of the origin function
+	add eax, 2 ; just the overwritten MOV EDI, EDI instruction
 	assume fs:nothing
 	mov dword ptr fs:[14h], eax
 	assume fs:error
@@ -23,52 +24,190 @@ HOOK_DEF ends
 trampoline_code_size EQU $ - @trampoline_code_start
 
 ;
-; This funcion uses the MS hot-patching method.
+; Try to find a code cave in the mapped pe_resolve_exported_function
+;	Args: <PE base address>
+;	Ret: code cade VA on success, NULL on error
+;
+find_code_cave proc base_addr:dword
+	local pe_addr:dword
+	local num_sections:dword
+	local cur_section:dword
+	local search_start:dword
+	local search_end:dword
+	local mem_info:MEMORY_BASIC_INFORMATION
+
+	; go to PE
+	mov eax, base_addr
+	mov eax, IMAGE_DOS_HEADER.e_lfanew[eax]
+	add eax, base_addr
+	mov pe_addr, eax
+
+	; got to the first section
+	movzx ecx, IMAGE_NT_HEADERS32.FileHeader.SizeOfOptionalHeader[eax]
+	add ecx, sizeof IMAGE_FILE_HEADER + sizeof IMAGE_NT_HEADERS32.Signature
+	add ecx, pe_addr
+	mov cur_section, ecx
+
+	; get num of sections
+	movzx ecx, IMAGE_NT_HEADERS32.FileHeader.NumberOfSections[eax]
+	mov num_sections, ecx
+
+@check_section_for_cave:
+	; update index
+	mov num_sections, ecx
+	mov ebx, cur_section
+
+	; get pointer to section data		
+	mov eax, IMAGE_SECTION_HEADER.VirtualAddress[ebx]
+	add eax, base_addr
+
+	; compute start search VA
+	mov ecx, IMAGE_SECTION_HEADER.VirtualSize[ebx]
+	add ecx, eax
+	mov search_start, ecx
+
+	; compute section allocation size
+	lea edx, mem_info
+	invoke VirtualQuery, eax, edx, sizeof MEMORY_BASIC_INFORMATION
+	test eax, eax
+	jz @fail
+
+	; compute end search VA
+	lea eax, mem_info
+	mov ecx, MEMORY_BASIC_INFORMATION.BaseAddress[eax]
+	add ecx, MEMORY_BASIC_INFORMATION.RegionSize[eax]
+	sub ecx, trampoline_code_size
+	mov search_end, ecx
+
+	mov esi, search_start
+@search_cave:
+	; verify that I haven't reached the section end	
+	cmp esi, search_end
+	jae @check_next_section
+
+	; check if I have a slack of size trampoline_code_size of zero bytes
+	mov ecx, trampoline_code_size
+	xor ebx, ebx
+
+@@:	
+	movzx eax, byte ptr [esi+ecx]
+	add ebx, eax
+	loop @b	
+	test ebx, ebx
+	jz @cave_found
+	add esi, trampoline_code_size
+	jmp @search_cave
+
+@check_next_section:
+	; no cave in this section, check the next one
+	add cur_section, sizeof IMAGE_SECTION_HEADER	
+	mov ecx, num_sections
+	loop @check_section_for_cave
+	jmp @fail
+
+@cave_found:	
+	; return the code cave VA
+	mov eax, esi
+
+@exit:
+	ret
+
+@fail:
+	xor eax, eax
+	jmp @exit
+find_code_cave endp
+
+;
+; This funcion uses the MS hot-patching method. The general concept is:
+;	overwrite "MOV EDI, EDI" with a jump before the function
+;	overwrite the space before the function with a jump to the trampoline
+;	the trampoline set the function information and call the hooked function
 ; See https://devblogs.microsoft.com/oldnewthing/20110921-00/?p=9583
 ;	Args: <lib_name:ptr char> <func_name:ptr char> <hook:ptr HOOK_DEF>
 ;	Ret: TRUE on success, FALSE otherwise
 ;
-hook_set proc C lib_name:ptr char, func_name:ptr char, hook:ptr HOOK_DEF
+hook_set proc lib_name:ptr char, func_name:ptr char, hook:ptr HOOK_DEF
+	local code_cave:dword
 	local old_protection:dword
-	local long_jump:dword
+	local hDll:dword
 	
+	; load library and does sanity check
 	invoke LoadLibraryA, lib_name
+	mov hDll, eax
 	invoke GetProcAddress, eax, func_name
-	cmp word ptr [eax], 0ff8bh ; check if it is mov edi, edi
+	cmp word ptr [eax], 0ff8bh ; check if it is "MOV EDI, EDI"
 	jne @fail
 
-	; set the value
+	; set the orig_func value
 	mov edi, hook
 	mov HOOK_DEF.orig_func[edi], eax
-		
-	; set my hook	
-	mov edi, eax
-	lea eax, dword ptr [eax-5h]
-	mov long_jump, eax
-	invoke VirtualProtect, long_jump, 0fh, PAGE_EXECUTE_READWRITE, addr old_protection
+
+	; find a code cave in the DLL
+	invoke find_code_cave, hDll
+	test eax, eax
+	jz @fail
+	mov code_cave, eax
+
+	; unprotect code
+	invoke VirtualProtect, code_cave, trampoline_code_size, PAGE_EXECUTE_READWRITE, addr old_protection
 	test eax, eax
 	jz @fail
 
-	; place hook
-	mov eax, long_jump
-	mov byte ptr [eax], 0e9h ; set opcode
-	inc eax
+	; write the trampoline to the code cave
+	mov ecx, trampoline_code_size
+	mov edi, code_cave
+	mov esi, offset @trampoline_code_start
+	rep movsb
 
-	mov ebx, hook
-	mov ebx, HOOK_DEF.hook_func[ebx]
-	sub ebx, eax
-	sub ebx, 4h
-	mov dword ptr [eax], ebx ; set func address
+	; fix the trampoline address
+	mov ecx, hook
+	mov edi, code_cave
+	add edi, 1
+	mov ebx, HOOK_DEF.orig_func[ecx]
+	mov dword ptr [edi], ebx ; write the original function address
+	add edi, sizeof dword ; skip address
+	add edi, 0ah ; skip code that set FS and the jmp opcode
+	mov ebx, HOOK_DEF.hook_func[ecx]
+	mov dword ptr [edi], ebx ; write function hook address
+	
+	; restore protection
+	invoke VirtualProtect, code_cave, trampoline_code_size, old_protection, addr old_protection
+	test eax, eax
+	jz @fail
 
-	mov word ptr [edi], 0f9ebh ; set trampoline
-
-	; set the value
+	; set the trampoline information value
+	mov edi, code_cave
 	mov eax, hook
 	mov HOOK_DEF.trampoline[eax], edi
-	mov HOOK_DEF.trampoline_size[eax], 2h
+	mov HOOK_DEF.trampoline_size[eax], trampoline_code_size
+
+	; overwrite the MOV EDI, EDI
+	mov edi, hook
+	mov edi, HOOK_DEF.orig_func[edi]
+	sub edi, 5h ; sub the space to write the long jump
+
+	invoke VirtualProtect, edi, 7h, PAGE_EXECUTE_READWRITE, addr old_protection
+	test eax, eax
+	jz @fail
+		
+	; start write code
+	mov esi, edi
+	mov byte ptr [edi], 0e9h ; set opcode 
+	inc edi
+
+	; compute trampoline offset
+	mov eax, hook
+	mov eax, HOOK_DEF.trampoline[eax]
+	sub eax, edi
+	sub eax, 4h
+	
+	; write trampoline address	
+	mov dword ptr [edi], eax ; set the trampoline address
+	add edi, sizeof dword ; move to the MOV EDI, EDI address
+	mov word ptr [edi], 0f9ebh ; overwrite MOV EDI, EDI to jump to the long jump
 
 	; restore protection
-	invoke VirtualProtect, long_jump, 0fh, old_protection, addr old_protection
+	invoke VirtualProtect, esi, 7h, old_protection, addr old_protection
 	test eax, eax
 	jz @fail
 
@@ -137,28 +276,13 @@ hook_add endp
 
 ;
 ; Call the original function
-;	Args: <HOOK_DEF ptr>, <varargs arguments...>
+;	Args: <varargs arguments...>
 ;	Ret: the value of the hooked function
 ;
 hook_call_original proc C
-	lea ecx, dword ptr [esp + 4] ; save the value
-	pop edx ; pop the return address to a non-volatile register
-
-	; pop the first argument that is the hook_def structure
-	pop eax
-	mov HOOK_DEF.saved_reg1[eax], ecx
-	mov HOOK_DEF.saved_reg2[eax], edx
-	mov HOOK_DEF.saved_reg3[eax], esi
-	mov esi, eax ; persist the hook value via non-volatile register
-	mov ecx, HOOK_DEF.orig_func[eax]
-	add ecx, HOOK_DEF.trampoline_size[eax]
-
-	; call the origin function (the input arguments are the correct one specified by the caller)
-	call ecx	
-
-	; restore the correct return address from the non-volatile register
-	mov esp, HOOK_DEF.saved_reg1[esi]
-	push HOOK_DEF.saved_reg2[esi]
-	mov esi, HOOK_DEF.saved_reg3[esi]
-	ret
+	; the address of the original function was saved in gs:[0x28] (ArbitraryUserPointer), just call it
+	assume fs:nothing
+	mov eax, dword ptr fs:[14h]
+	assume fs:error
+	jmp eax
 hook_call_original endp

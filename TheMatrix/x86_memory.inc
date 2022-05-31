@@ -1,8 +1,7 @@
 MEMORY_BASIC_INFORMATION struct
 	BaseAddress			dword ?
 	AllocationBase		dword ?
-	AllocationProtect	dword ?
-	PartitionId			word ?
+	AllocationProtect	dword ?	
 	RegionSize			dword ?
 	State				dword ?
 	Protect				dword ?
