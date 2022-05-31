@@ -16,25 +16,25 @@ void log_data(size_t data_size, uint8_t* data, char* name)
 		strcat_s(log_file, sizeof(log_file), "thematrix");
 		strcat_s(log_file, sizeof(log_file), "\\");
 		strcat_s(log_file, sizeof(log_file), proc_id);
-		CreateDirectoryA(log_file, NULL);
+		if (SHCreateDirectoryExA(NULL, log_file, NULL)) {
+			strcat_s(log_file, sizeof(log_file), "\\");
+			strcat_s(log_file, sizeof(log_file), name);
+			strcat_s(log_file, sizeof(log_file), ".log");
 
-		strcat_s(log_file, sizeof(log_file), "\\");
-		strcat_s(log_file, sizeof(log_file), name);
-		strcat_s(log_file, sizeof(log_file), ".log");
+			hFile = CreateFileA(
+				log_file,
+				GENERIC_READ | GENERIC_WRITE,
+				0,
+				NULL,
+				OPEN_ALWAYS,
+				FILE_ATTRIBUTE_NORMAL,
+				NULL
+			);
 
-		hFile = CreateFileA(
-			log_file,
-			GENERIC_READ | GENERIC_WRITE,
-			0,
-			NULL,
-			OPEN_ALWAYS,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL
-		);
-
-		if (hFile != INVALID_HANDLE_VALUE) {
-			WriteFile(hFile, data, (DWORD)data_size, &nCount, NULL);
-			CloseHandle(hFile);
+			if (hFile != INVALID_HANDLE_VALUE) {
+				WriteFile(hFile, data, (DWORD)data_size, &nCount, NULL);
+				CloseHandle(hFile);
+			}
 		}
 	}
 }
