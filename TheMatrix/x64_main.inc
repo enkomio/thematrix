@@ -194,7 +194,7 @@ run_as_executable proc frame
 run_as_executable endp
 
 main proc frame
-	_CreateFrame m_
+	_CreateFrame m_,0,0,r12,r13,r14,r15,rdi,rsi,rbx
 	_EndProlog
 	_AllocHomeArea
 
@@ -227,7 +227,7 @@ main proc frame
 	call run_as_executable
 
 @exit:
-	_DeleteFrame
+	_DeleteFrame r12,r13,r14,r15,rdi,rsi,rbx
 	ret
 main endp
 
