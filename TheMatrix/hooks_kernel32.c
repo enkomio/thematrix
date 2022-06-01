@@ -14,7 +14,7 @@ static mem_allocated* g_mem_tail = 0;
 
 LPVOID __stdcall VirtualAlloc_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
-	LPVOID res = hook_call_original(lpAddress, dwSize, flAllocationType, flProtect);
+	LPVOID res = call_original(lpAddress, dwSize, flAllocationType, flProtect);
 	if (res) {
 		// save details of the allocation size
 		if (!g_mem_root) {
@@ -51,7 +51,7 @@ LPVOID __stdcall VirtualFree_hook(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeT
 		m = m->next;
 	}
 
-	LPVOID res = hook_call_original(lpAddress, dwSize, dwFreeType);
+	LPVOID res = call_original(lpAddress, dwSize, dwFreeType);
 	return res;
 }
 

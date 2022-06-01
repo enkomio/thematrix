@@ -280,9 +280,16 @@ hook_add endp
 ;	Ret: the value of the hooked function
 ;
 hook_call_original proc C
+	; adjust stack
+	pop eax
+
 	; the address of the original function was saved in gs:[0x28] (ArbitraryUserPointer), just call it
 	assume fs:nothing
 	mov eax, dword ptr fs:[14h]
 	assume fs:error
 	jmp eax
 hook_call_original endp
+
+
+g_hook_call_original dword hook_call_original
+public C g_hook_call_original 

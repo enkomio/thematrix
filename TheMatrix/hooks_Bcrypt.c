@@ -5,7 +5,7 @@
 
 LPVOID __stdcall hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
 {	
-	LPVOID ret = hook_call_original(
+	LPVOID ret = call_original(
 		hKey,
 		pbInput,
 		cbInput,
@@ -37,7 +37,7 @@ LPVOID __stdcall hook_BCryptEncrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULON
 		log_data(cbInput, pbInput, name);
 	}	
 
-	LPVOID ret = hook_call_original(
+	LPVOID ret = call_original(
 		hKey,
 		pbInput,
 		cbInput,
@@ -59,7 +59,7 @@ LPVOID __stdcall hook_BCryptImportKeyPair(BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_K
 	snprintf(name, sizeof(name), "BCryptImportKeyPair_%llx_%d", (uint64_t)pbInput, cbInput);
 	log_data(cbInput, pbInput, name);
 
-	LPVOID ret = hook_call_original(
+	LPVOID ret = call_original(
 		hAlgorithm,
 		hImportKey,
 		pszBlobType,

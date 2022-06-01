@@ -9,6 +9,6 @@ typedef struct hook_info hook_info;
 extern hook_info* hook_add(char* dll_name, char* func_name, void* (__stdcall *hook_func)());
 
 // call the original function
-extern void* hook_call_original();
+LPVOID __stdcall call_original(void);
 
 #endif

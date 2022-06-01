@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <Windows.h>
 #include <WinInet.h>
@@ -304,6 +305,7 @@ void BCrypt_test(void)
 
 int main(void)
 {
+    printf("Start test functions\n");
     BCrypt_test();
     WinInet_test();
     VirtualAlloc_test();    
