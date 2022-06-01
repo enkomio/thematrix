@@ -279,7 +279,7 @@ hook_add endp
 ;	Args: <varargs arguments...>
 ;	Ret: the value of the hooked function
 ;
-hook_call_original proc C
+hook_call_original proc
 	; adjust stack
 	pop eax
 
@@ -290,6 +290,8 @@ hook_call_original proc C
 	jmp eax
 hook_call_original endp
 
-
+;
+; This function pointer is used to call the original hooked function
+;
 g_hook_call_original dword hook_call_original
 public C g_hook_call_original 

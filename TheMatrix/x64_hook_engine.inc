@@ -304,3 +304,10 @@ hook_call_original proc
 	mov rax, gs:[028h]
 	jmp rax
 hook_call_original endp
+
+;
+; A jump to the hook_call_original function
+;
+call_original proc
+	jmp hook_call_original
+call_original endp
