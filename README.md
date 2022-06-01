@@ -1,5 +1,5 @@
 # TheMatrix
-This project was created to easier the malware analysis process. The goal is to create an activator binary whose purpose is to load a user defined binary and monitor the execution by using Win32 API hooks. The code supports both x86 and x64 binaries.
+This project was created to ease the malware analysis process. The goal is to create an activator binary whose purpose is to load a user defined binary and monitor the execution by using Win32 API hooks. Relevant data is then saved to disk. The code supports both x86 and x64 binaries.
 
 # Usage
 To monitor a new binary is necessary to create an **activator**. The activator will load and monitor a user input binary. To create an activator use the **-add** option. An example of usage is the following one:
