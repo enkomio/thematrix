@@ -142,7 +142,7 @@ clone_file proc file_to_add:ptr char, DllMain_rva:dword
 	; clean-up memory
 	invoke heap_free, orig_filename	
 
-	; if the file to embed is a DLL I have to change the File Header Characteristics
+	; if the file to embed is a DLL I have to change the File Header Characteristics and Entry Point
 	cmp file_extension, 'lld.'
 	jne @f
 
@@ -175,6 +175,10 @@ clone_file proc file_to_add:ptr char, DllMain_rva:dword
 	mov cx, word ptr IMAGE_NT_HEADERS32.FileHeader.Characteristics[eax]
 	or cx, IMAGE_FILE_DLL
 	mov word ptr IMAGE_NT_HEADERS32.FileHeader.Characteristics[eax], cx
+
+	; update entry-point with DllMain rva
+	mov edx, DllMain_rva
+	mov dword ptr IMAGE_NT_HEADERS32.OptionalHeader.AddressOfEntryPoint[eax], edx
 
 	; go to the start of the file
 	invoke SetFilePointer, hFile, 0h, 0h, FILE_BEGIN
