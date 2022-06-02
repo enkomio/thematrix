@@ -1,16 +1,10 @@
 HOOK_DEF struct
 	func_name		dword ?
 	lib_name		dword ?
-	log_dir			dword ?
 	orig_func		dword ?
 	hook_func		dword ?
 	trampoline		dword ?	
 	trampoline_size	dword ?
-	hook_counter	dword ?
-	saved_reg1		dword ?
-	saved_reg2		dword ?
-	saved_reg3		dword ?
-	saved_reg4		dword ?
 HOOK_DEF ends
 
 @trampoline_code_start:
@@ -42,7 +36,7 @@ find_code_cave proc base_addr:dword
 	add eax, base_addr
 	mov pe_addr, eax
 
-	; got to the first section
+	; go to the first section
 	movzx ecx, IMAGE_NT_HEADERS32.FileHeader.SizeOfOptionalHeader[eax]
 	add ecx, sizeof IMAGE_FILE_HEADER + sizeof IMAGE_NT_HEADERS32.Signature
 	add ecx, pe_addr
@@ -283,7 +277,7 @@ hook_call_original proc
 	; adjust stack
 	pop eax
 
-	; the address of the original function was saved in gs:[0x28] (ArbitraryUserPointer), just call it
+	; the address of the original function was saved in fs:[14h] (ArbitraryUserPointer), just call it
 	assume fs:nothing
 	mov eax, dword ptr fs:[14h]
 	assume fs:error

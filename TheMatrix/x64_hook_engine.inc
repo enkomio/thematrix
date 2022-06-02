@@ -5,10 +5,6 @@ HOOK_DEF struct
 	hook_func		qword ?
 	trampoline		qword ?	
 	trampoline_size	qword ?
-	saved_reg1		qword ?
-	saved_reg2		qword ?
-	saved_reg3		qword ?
-	saved_reg4		qword ?
 HOOK_DEF ends
 
 @trampoline_code_start:
