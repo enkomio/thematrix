@@ -100,7 +100,7 @@ run_binary proc a0:dword, a1:dword, a2:dword
 
 	push a2 ; lpReserver	
 	push a1 ; fdwReason
-	push a0 ; hModule
+	push base_addr ; hModule of the mapped PE
 	jmp @call_entry_point
 
 @run_as_exe:
