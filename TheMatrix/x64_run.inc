@@ -117,11 +117,11 @@ run_binary proc frame
 	mov qword ptr LOCALS.Local2[rbp], rax
 
 	; if the binary is a DLL the first input argument must be the allocation base
-	mov rdx, IMAGE_DOS_HEADER.e_lfanew[rax]
+	mov edx, IMAGE_DOS_HEADER.e_lfanew[rax]
 	add rdx, rax
 	movzx eax, word ptr IMAGE_NT_HEADERS64.FileHeader.Characteristics[rdx]
 	test eax, IMAGE_FILE_DLL
-	jnz @f
+	jz @f
 
 	; modify the first argument with the base address
 	mov rax, qword ptr LOCALS.Local2[rbp]
