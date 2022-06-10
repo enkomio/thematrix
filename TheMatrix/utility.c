@@ -16,7 +16,7 @@ void log_data(size_t data_size, uint8_t* data, char* name)
 		strcat_s(log_file, sizeof(log_file), "thematrix");
 		strcat_s(log_file, sizeof(log_file), "\\");
 		strcat_s(log_file, sizeof(log_file), proc_id);
-		if (SHCreateDirectoryExA(NULL, log_file, NULL)) {
+		if (!SHCreateDirectoryExA(NULL, log_file, NULL)) {
 			strcat_s(log_file, sizeof(log_file), "\\");
 			strcat_s(log_file, sizeof(log_file), name);
 			strcat_s(log_file, sizeof(log_file), ".log");
