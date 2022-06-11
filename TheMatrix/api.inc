@@ -14,6 +14,7 @@ GetCurrentProcessId proto
 GetFileSize proto hFile:ptr void, lpFileSizeHigh:ptr dword
 GetLastError proto
 GetModuleFileNameA proto hModule:ptr void, lpFilename:ptr char, nSize:dword
+GetModuleFileNameW proto hModule:ptr void, lpFilename:ptr word, nSize:dword
 GetProcAddress proto hModule:ptr void, lpProcName:ptr char
 GetProcessHeap proto
 GetProcessId proto Process:ptr void

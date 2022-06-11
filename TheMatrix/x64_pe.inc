@@ -292,7 +292,7 @@ pe_adjust_PEB proc frame
 	peap_va_pe EQU LOCALS.Local1
 	peap_mod_base EQU LOCALS.Local2
 	peap_entry_src EQU LOCALS.Local3
-	peap_entry_src_size EQU LOCALS.Local4
+	peap_buffer EQU LOCALS.Local4
 	STACK_SIZE EQU LOCALS_SIZE + MEMORY_BASIC_INFORMATION_SIZE
 	_CreateFrame peap_,STACK_SIZE,0,rbx,rsi,rdi
 	_EndProlog
@@ -357,7 +357,7 @@ pe_adjust_PEB proc frame
 	sub rbx, rcx ; this is the gap between the start of the region and the LDR_DATA_TABLE_ENTRY
 	mov rax, MEMORY_BASIC_INFORMATION.RegionSize[rax]
 	sub rax, rbx ; this is the size of the memory that contains at least all the LDR_DATA_TABLE_ENTRY data
-	mov qword ptr peap_entry_src_size[rbp], rax
+	mov rsi, rax ; save to non-volatile register
 
 	; allocate memory
 	mov rcx, rax
@@ -366,7 +366,7 @@ pe_adjust_PEB proc frame
 	jz @fail
 
 	; copy the LDR_DATA_TABLE_ENTRY data to the allocated memory
-	mov rcx, qword ptr peap_entry_src_size[rbp]
+	mov rcx, rsi
 	mov rsi, qword ptr peap_entry_src[rbp]
 	mov rdi, rax 
 	rep movsb
@@ -383,6 +383,49 @@ pe_adjust_PEB proc frame
 	mov rcx, qword ptr peap_va_pe[rbp]
 	mov ecx, IMAGE_NT_HEADERS64.OptionalHeader.SizeOfImage[rcx]
 	mov qword ptr LDR_DATA_TABLE_ENTRY.SizeOfImage[rax], rcx ; set the image size
+
+	; save to non-volatile register
+	mov rdi, rax
+
+	; get module name
+	mov rcx, 512h
+	call heap_alloc
+	test rax, rax
+	jz @fail
+	
+	mov rsi, rax ; save to non-volatile register
+
+	mov rdx, rax
+	xor rcx, rcx
+	mov r8, 512h
+	call GetModuleFileNameW
+	test rax, rax
+	jz @fail
+	shl rax, 1
+
+	; set the FullDllName
+	mov qword ptr LDR_DATA_TABLE_ENTRY.FullDllName.Buffer[rdi], rsi
+	mov LDR_DATA_TABLE_ENTRY.FullDllName.MaximumLength[rdi], ax
+	mov LDR_DATA_TABLE_ENTRY.FullDllName._Length[rdi], ax
+		
+	; go to the DLL name
+	xchg rsi, rdi	
+	add rdi, rax
+	mov r10, rdi
+	std
+	mov rcx, rax
+	mov rax, 05ch
+	repnz scasb
+	add rdi, 3h
+
+	; set the BaseDllName
+	mov qword ptr LDR_DATA_TABLE_ENTRY.BaseDllName.Buffer[rsi], rdi
+	sub r10, rdi
+	mov rax, r10
+	mov LDR_DATA_TABLE_ENTRY.BaseDllName.MaximumLength[rsi], ax
+	mov LDR_DATA_TABLE_ENTRY.BaseDllName._Length[rsi], ax
+
+	mov rax, rsi ; restore value
 
 	; finally, add the new entry to all the lists
 	mov rcx, 3

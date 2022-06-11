@@ -36,11 +36,11 @@ unicode_string_len proc buffer:dword
 unicode_string_len endp
 
 ;
-; Clone the given string
+; Clone the given ascii string
 ;	Args: <string buffer>
 ;	Ret: cloned string on success, NULL on error
 ;
-string_clone proc buffer:dword
+ascii_string_clone proc buffer:dword
 	local l:dword
 	local cloned_string:dword
 
@@ -65,7 +65,7 @@ string_clone proc buffer:dword
 @fail:
 	xor eax, eax
 	jmp @exit
-string_clone endp
+ascii_string_clone endp
 
 ;
 ; Compare two strings

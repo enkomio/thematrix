@@ -46,11 +46,11 @@ unicode_string_len proc frame
 unicode_string_len endp
 
 ;
-; Clone the given string
+; Clone the given ascii string
 ;	Args: <string buffer>
 ;	Ret: cloned string on success, NULL on error
 ;
-string_clone proc frame
+ascii_string_clone proc frame
 	_CreateFrame stringcl_,LOCALS_SIZE,0,rsi,rdi
 	_EndProlog
 	_AllocHomeArea
@@ -83,7 +83,7 @@ string_clone proc frame
 @fail:
 	xor rax, rax
 	jmp @exit
-string_clone endp
+ascii_string_clone endp
 
 ;
 ; Compare two strings

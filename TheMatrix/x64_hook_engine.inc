@@ -257,7 +257,7 @@ hook_add proc frame
 
 	; set hook lib name
 	mov rcx, qword ptr hadd_OffsetHomeRCX[rbp]
-	call string_clone
+	call ascii_string_clone
 	test rax, rax
 	jz @fail
 	mov r10, qword ptr hadd_hook_def[rbp]
@@ -265,7 +265,7 @@ hook_add proc frame
 
 	; set hook func name
 	mov rcx, qword ptr hadd_OffsetHomeRDX[rbp]
-	call string_clone
+	call ascii_string_clone
 	test rax, rax
 	jz @fail
 	mov r10, qword ptr hadd_hook_def[rbp]
