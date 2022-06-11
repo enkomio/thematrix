@@ -395,9 +395,13 @@ pe_adjust_PEB proc frame
 	
 	mov rsi, rax ; save to non-volatile register
 
-	mov rdx, rax
-	xor rcx, rcx
-	mov r8, 512h
+	call get_module_base
+	test rax, rax
+	jz @fail
+
+	mov rdx, rsi	
+	mov r8, 512h	
+	mov rcx, rax
 	call GetModuleFileNameW
 	test rax, rax
 	jz @fail
