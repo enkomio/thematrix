@@ -11,7 +11,7 @@ HOOK_DEF ends
 	mov eax, 011223344h ; store the address of the origin function
 	add eax, 2 ; just the overwritten MOV EDI, EDI instruction
 	assume fs:nothing
-	mov dword ptr fs:[14h], eax
+	mov dword ptr fs:[14h], eax ; TIB.ArbitraryUserPointer, see: https://codemachine.com/articles/arbitraryuserpointer_usage.html
 	assume fs:error
 	mov eax, 011223344h ; hook function address
 	jmp eax

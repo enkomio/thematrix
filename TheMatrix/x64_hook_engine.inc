@@ -9,7 +9,7 @@ HOOK_DEF ends
 
 @trampoline_code_start:
 	mov rax, 011223344aabbccddh ; store the address of the origin function
-	mov qword ptr gs:[28h], rax
+	mov qword ptr gs:[28h], rax ; TIB.ArbitraryUserPointer, see: https://codemachine.com/articles/arbitraryuserpointer_usage.html
 	mov rax, 011223344aabbccddh ; hook function address
 	jmp rax
 trampoline_code_size EQU $ - @trampoline_code_start
