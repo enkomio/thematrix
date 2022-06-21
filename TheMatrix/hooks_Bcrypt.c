@@ -18,11 +18,11 @@ LPVOID __stdcall hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULON
 		dwFlags
 	);
 
-	if (!ret && cbOutput) {
+	if (!ret && *pcbResult) {
 		// save decrypted data
 		char name[MAX_PATH] = { 0 };
-		snprintf(name, sizeof(name), "BCryptDecrypt_%llx_%d", (uint64_t)pbOutput, cbOutput);
-		log_data(cbOutput, pbOutput, name);
+		snprintf(name, sizeof(name), "BCryptDecrypt_%llx_%d", (uint64_t)pbOutput, *pcbResult);
+		log_data(*pcbResult, pbOutput, name);
 	}
 
 	return ret;
