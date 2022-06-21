@@ -3,8 +3,8 @@
 #include "hooks.h"
 #include "utility.h"
 
-LPVOID __stdcall BCryptDecrypt_hook(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
-{	
+LPVOID __stdcall hook_BCryptDecrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
+{
 	LPVOID ret = call_original(
 		hKey,
 		pbInput,
@@ -28,14 +28,14 @@ LPVOID __stdcall BCryptDecrypt_hook(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULON
 	return ret;
 }
 
-LPVOID __stdcall BCryptEncrypt_hook(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
+LPVOID __stdcall hook_BCryptEncrypt(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULONG cbInput, VOID* pPaddingInfo, PUCHAR pbIV, ULONG cbIV, PUCHAR pbOutput, ULONG cbOutput, ULONG* pcbResult, ULONG dwFlags)
 {
 	// save plain data
 	if (cbInput) {
 		char name[MAX_PATH] = { 0 };
 		snprintf(name, sizeof(name), "BCryptEncrypt_%llx_%d", (uint64_t)pbInput, cbInput);
 		log_data(cbInput, pbInput, name);
-	}	
+	}
 
 	LPVOID ret = call_original(
 		hKey,
@@ -52,7 +52,7 @@ LPVOID __stdcall BCryptEncrypt_hook(BCRYPT_KEY_HANDLE hKey, PUCHAR pbInput, ULON
 	return ret;
 }
 
-LPVOID __stdcall BCryptImportKeyPair_hook(BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hImportKey, LPCWSTR pszBlobType, BCRYPT_KEY_HANDLE* phKey, PUCHAR pbInput, ULONG cbInput, ULONG dwFlags)
+LPVOID __stdcall hook_BCryptImportKeyPair(BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hImportKey, LPCWSTR pszBlobType, BCRYPT_KEY_HANDLE* phKey, PUCHAR pbInput, ULONG cbInput, ULONG dwFlags)
 {
 	// save imported ket bytes
 	char name[MAX_PATH] = { 0 };
@@ -73,8 +73,8 @@ LPVOID __stdcall BCryptImportKeyPair_hook(BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_K
 
 int hooks_bcrypt(void)
 {
-	hook_add("Bcrypt.dll", "BCryptEncrypt", BCryptEncrypt_hook);
-	hook_add("Bcrypt.dll", "BCryptDecrypt", BCryptDecrypt_hook);
-	hook_add("Bcrypt.dll", "BCryptImportKeyPair", BCryptImportKeyPair_hook);
+	hook_add("Bcrypt.dll", "BCryptEncrypt", hook_BCryptEncrypt);
+	hook_add("Bcrypt.dll", "BCryptDecrypt", hook_BCryptDecrypt);
+	hook_add("Bcrypt.dll", "BCryptImportKeyPair", hook_BCryptImportKeyPair);
 	return 0;
 }

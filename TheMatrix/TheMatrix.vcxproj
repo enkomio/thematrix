@@ -197,6 +197,7 @@
     <ClCompile Include="hooks.c" />
     <ClCompile Include="hooks_Bcrypt.c" />
     <ClCompile Include="hooks_kernel32.c" />
+    <ClCompile Include="hooks_Wininet.c" />
     <ClCompile Include="utility.c" />
   </ItemGroup>
   <ItemGroup>

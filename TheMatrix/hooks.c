@@ -20,5 +20,6 @@ bool hooks_init(uint8_t* hMod)
 	// add function hooks here
 	hooks_kernel32();
 	hooks_bcrypt();
+	hooks_Wininet();
 	return true;
 }
