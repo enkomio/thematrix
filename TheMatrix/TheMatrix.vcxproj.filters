@@ -101,6 +101,9 @@
     <ClCompile Include="hooks_Wininet.c">
       <Filter>C</Filter>
     </ClCompile>
+    <ClCompile Include="hooks_Shell32.c">
+      <Filter>C</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hooks.h">

@@ -21,5 +21,6 @@ bool hooks_init(uint8_t* hMod)
 	hooks_kernel32();
 	hooks_bcrypt();
 	hooks_Wininet();
+	hooks_Shell32();
 	return true;
 }

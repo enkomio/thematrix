@@ -303,11 +303,38 @@ void BCrypt_test(void)
     BCryptCloseAlgorithmProvider(hECDHAlgorithm, 0);   
 }
 
+void WriteFile_test(void)
+{
+    char DataBuffer[] = "This is a simple text";
+    int dwBytesToWrite = sizeof(DataBuffer);
+    int dwBytesWritten = 0;
+
+    HANDLE hFile = CreateFile(
+        L"test.txt",                // name of the write
+        GENERIC_WRITE,          // open for writing
+        0,                      // do not share
+        NULL,                   // default security
+        CREATE_NEW,             // create new file only
+        FILE_ATTRIBUTE_NORMAL,  // normal file
+        NULL);                  // no attr. template
+
+    WriteFile(
+        hFile,           // open file handle
+        DataBuffer,      // start of data to write
+        dwBytesToWrite,  // number of bytes to write
+        &dwBytesWritten, // number of bytes that were written
+        NULL);            // no overlapped structure
+
+    CloseHandle(hFile);
+    DeleteFile(L"test.txt");
+}
+
 int main(void)
 {
     printf("Start test functions\n");
     BCrypt_test();
     WinInet_test();
-    VirtualAlloc_test();    
+    VirtualAlloc_test();   
+    WriteFile_test();
     return 0;
 }

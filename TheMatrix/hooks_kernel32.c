@@ -55,17 +55,6 @@ LPVOID __stdcall hook_VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeT
 	return res;
 }
 
-LPVOID __stdcall hook_SHFileOperationW(LPSHFILEOPSTRUCTW lpFileOp)
-{
-	LPVOID result = call_original(lpFileOp);
-	if (result) {
-		char name[MAX_PATH] = { 0 };
-		snprintf(name, sizeof(name), "SHFileOperationW_%llx_%d", (uint64_t)lpFileOp, result);
-		log_data(4, &result, name);
-	}
-	return result;
-}
-
 LPVOID __stdcall hook_CreateProcessW(
 	LPCWSTR               lpApplicationName,
 	LPWSTR                lpCommandLine,
@@ -121,11 +110,35 @@ LPVOID __stdcall hook_CreateProcessW(
 	);
 }
 
+LPVOID __stdcall hook_WriteFile(
+	HANDLE       hFile,
+	LPCVOID      lpBuffer,
+	DWORD        nNumberOfBytesToWrite,
+	LPDWORD      lpNumberOfBytesWritten,
+	LPOVERLAPPED lpOverlapped
+)
+{
+	LPVOID result = call_original(
+		hFile,
+		lpBuffer,
+		nNumberOfBytesToWrite,
+		lpNumberOfBytesWritten,
+		lpOverlapped
+	);
+
+	if (result && *lpNumberOfBytesWritten) {
+		char name[MAX_PATH] = { 0 };
+		snprintf(name, sizeof(name), "WriteFile_%llx_%llx_%d", (uint64_t)lpBuffer, (uint64_t)hFile, *lpNumberOfBytesWritten);
+		log_data(*lpNumberOfBytesWritten, lpBuffer, name);
+	}
+	return result;
+}
+
 int hooks_kernel32(void)
 {
 	hook_add("Kernel32.dll", "VirtualFree", hook_VirtualFree);
 	hook_add("Kernel32.dll", "VirtualAlloc", hook_VirtualAlloc);
 	hook_add("Kernel32.dll", "CreateProcessW", hook_CreateProcessW);
-	hook_add("Shell32.dll", "SHFileOperationW", hook_SHFileOperationW);
+	hook_add("Kernel32.dll", "WriteFile", hook_WriteFile);
 	return 0;
 }
