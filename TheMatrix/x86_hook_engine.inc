@@ -8,7 +8,7 @@ HOOK_DEF struct
 HOOK_DEF ends
 
 @trampoline_code_start:
-	mov eax, 011223344h ; store the address of the origin function
+	mov eax, 011223344h ; store the address of the original function
 	add eax, 2 ; just the overwritten MOV EDI, EDI instruction
 	assume fs:nothing
 	mov dword ptr fs:[14h], eax ; TIB.ArbitraryUserPointer, see: https://codemachine.com/articles/arbitraryuserpointer_usage.html
@@ -239,14 +239,14 @@ hook_add proc C lib_name:ptr char, func_name:ptr char, hook_func:ptr void
 	mov HOOK_DEF.hook_func[eax], ebx
 
 	; set hook lib name
-	invoke string_clone, lib_name
+	invoke ascii_string_clone, lib_name
 	test eax, eax
 	jz @fail
 	mov ebx, hook
 	mov HOOK_DEF.lib_name[ebx], eax
 
 	; set hook func name
-	invoke string_clone, func_name
+	invoke ascii_string_clone, func_name
 	test eax, eax
 	jz @fail
 	mov ebx, hook

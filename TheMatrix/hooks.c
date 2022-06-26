@@ -5,6 +5,8 @@
 
 extern void hooks_kernel32(void);
 extern void hooks_bcrypt(void);
+extern void hooks_Wininet(void);
+extern void hooks_Shell32(void);
 
 #ifndef _WIN64
 // pointer to function that calls the original function

@@ -99,7 +99,14 @@ run_binary proc frame
 	call load_embedded_binary
 	test rax, rax
 	jz @fail
-	mov qword ptr LOCALS.Local1[rbp], rax
+	mov qword ptr LOCALS.Local1[rbp], rax	
+
+	; load the PE in memory
+	mov rcx, qword ptr LOCALS.Local1[rbp]
+	call pe_load
+	test rax, rax
+	jz @fail
+	mov qword ptr LOCALS.Local2[rbp], rax
 
 	; hook functions. This must be done before the embedded binary is loaded,
 	; since in x64 we use EAT hooking. If not done in this way, the resolved
@@ -109,14 +116,8 @@ run_binary proc frame
 	test rax, rax
 	jz @fail
 
-	; load the PE in memory
-	mov rcx, qword ptr LOCALS.Local1[rbp]
-	call pe_load
-	test rax, rax
-	jz @fail
-	mov qword ptr LOCALS.Local2[rbp], rax
-
 	; if the binary is a DLL the first input argument must be the allocation base
+	mov rax, qword ptr LOCALS.Local2[rbp]
 	mov edx, IMAGE_DOS_HEADER.e_lfanew[rax]
 	add rdx, rax
 	movzx eax, word ptr IMAGE_NT_HEADERS64.FileHeader.Characteristics[rdx]

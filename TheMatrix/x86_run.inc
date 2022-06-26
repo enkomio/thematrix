@@ -85,6 +85,7 @@ run_binary proc a0:dword, a1:dword, a2:dword
 	invoke VirtualFree, file_content, 0h, MEM_DECOMMIT
 
 	; hooks all functions
+	push base_addr
 	call hooks_init
 	test eax, eax
 	jz @fail
