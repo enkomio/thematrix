@@ -2,7 +2,7 @@
 This project was created to ease the malware analysis process. The goal is to create an activator binary whose purpose is to load a user defined binary and monitor the execution by using Win32 API hooks. Relevant data is then saved to disk. The code supports both x86 and x64 binaries.
 
 # Doc
-I wrote a blog post exaplining how it works: <a href="http://antonioparata.blogspot.com/2022/06/thematrix-process-inspection-tool-aimed.html">http://antonioparata.blogspot.com/2022/06/thematrix-process-inspection-tool-aimed.html</a>
+I wrote a blog post explaining how it works: <a href="http://antonioparata.blogspot.com/2022/06/thematrix-process-inspection-tool-aimed.html">http://antonioparata.blogspot.com/2022/06/thematrix-process-inspection-tool-aimed.html</a>
 
 # Usage
 To monitor a new binary is necessary to create an **activator**. The activator will load and monitor a user input binary. To create an activator use the **-add** option. An example of usage is the following one:
