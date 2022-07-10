@@ -14,6 +14,12 @@ UNICODE_STRING  struct
 	Buffer				qword ?
 UNICODE_STRING ends
 
+RTL_BALANCED_NODE struct
+	Left					qword ?
+	Right					qword ?
+	ParentValue				qword ?
+RTL_BALANCED_NODE ends
+
 LDR_DATA_TABLE_ENTRY struct
 	InLoadOrderLinks				LIST_ENTRY <>
 	InMemoryOrderLinks				LIST_ENTRY <>
@@ -31,11 +37,19 @@ LDR_DATA_TABLE_ENTRY struct
 	TimeDateStamp					dword ?
     __padding1                      dword ?
 	EntryPointActivationContext		qword ?
-	PatchInformation				qword ?
-	ForwarderLinks					LIST_ENTRY <>
-	ServiceTagLinks					LIST_ENTRY <>
-	StaticLinks						LIST_ENTRY <>
+	_Lock							qword ?
+	DgagNode						qword ?
+	NodeModuleLink					LIST_ENTRY <>
+	LoadContext						qword ?
+	ParentDllBase					qword ?
 	SwitchBackContext				qword ?
+	BaseAddressIndexNode			RTL_BALANCED_NODE <>
+	MappingInfoIndexNode			RTL_BALANCED_NODE <>
+	OriginalBase					qword ?
+	LoadTime						qword ?
+	BaseNameHashValue				dword ?
+	__padding2                      dword ?
+	LoadReason						dword ?
 LDR_DATA_TABLE_ENTRY ends
 
 PEB_LDR_DATA struct
@@ -371,18 +385,78 @@ pe_adjust_PEB proc frame
 	mov rdi, rax 
 	rep movsb
 
-	; modify the newly created entry with the data on the embedded binary
+	; set the DllBase
 	mov rcx, qword ptr peap_OffsetHomeRCX[rbp]
 	mov qword ptr LDR_DATA_TABLE_ENTRY.DllBase[rax], rcx ; set the DLL base	
 	
+	; set the EntryPoint
 	mov rcx, qword ptr peap_va_pe[rbp]
 	mov ecx, IMAGE_NT_HEADERS64.OptionalHeader.AddressOfEntryPoint[rcx]
 	add rcx, qword ptr peap_OffsetHomeRCX[rbp]
 	mov qword ptr LDR_DATA_TABLE_ENTRY.EntryPoint[rax], rcx ; set the entry-point
 
+	; set the ImageSize
 	mov rcx, qword ptr peap_va_pe[rbp]
 	mov ecx, IMAGE_NT_HEADERS64.OptionalHeader.SizeOfImage[rcx]
 	mov qword ptr LDR_DATA_TABLE_ENTRY.SizeOfImage[rax], rcx ; set the image size
+
+	; check if it is at least Win8 (6.2). If so I have to update more structures
+	mov rcx, gs:[60h]
+	mov edx, dword ptr [rcx + 0118h] ; OSMajorVersion
+	cmp rdx, 6h
+	ja @update_node_rbl
+	mov edx, dword ptr [rcx + 011ch] ; OSMinorVersion
+	cmp rdx, 2h
+	jae @update_node_rbl
+	jmp @node_added_completed
+
+@update_node_rbl:	
+	; update the BaseAddressIndexNode with a new node
+	; more info: https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/shared/ntdef/rtl_balanced_node.htm?tx=210
+	lea rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[rax]
+@find_node_root:
+	mov rdx, RTL_BALANCED_NODE.ParentValue[rcx]
+	and rdx, not RTL_BALANCED_NODE_RESERVED_PARENT_MASK
+	test rdx, rdx
+	jz @root_node_found
+	mov rcx, rdx
+	jmp @find_node_root
+@root_node_found:
+	; point to the LDR_DATA_TABLE_ENTRY
+	
+	; add the node to the correct position starting from the root
+	mov rbx, LDR_DATA_TABLE_ENTRY.DllBase[rax]
+@insert_node_loop:	
+	sub rcx, 0c8h
+	cmp LDR_DATA_TABLE_ENTRY.DllBase[rcx], rbx
+	je @node_added_completed
+	jb @check_node_left
+
+	; did I found an empty spot? if so, add the node
+	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], 0h
+	je @add_node_rigth
+
+	; move down the tree and continue to search
+	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx]
+	jmp @insert_node_loop
+	
+@check_node_left:
+	; did I found an empty spot? if so, add the node
+	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], 0h
+	je @add_node_left
+
+	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx]
+	jmp @insert_node_loop
+
+@add_node_left:
+	lea rbx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[rax]
+	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], rbx
+	jmp @node_added_completed
+
+@add_node_rigth:
+	lea rbx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[rax]
+	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], rbx
+@node_added_completed:	
 
 	; save to non-volatile register
 	mov r13, rax
@@ -692,7 +766,7 @@ pe_relocate endp
 
 ;
 ; Load the buffer containing the PE file
-;	Args: <PE buffer>
+;	Args: <Mapped PE>
 ;	Ret: Loaded PE VA on success, NULL on error
 ;
 pe_load proc frame
@@ -702,25 +776,24 @@ pe_load proc frame
 
 	mov qword ptr pl_OffsetHomeRCX[rbp], rcx
 
-	; allocate space an map headers and sections
-	call pe_map
+	; resolve imports
+	call pe_resolve_imports
 	test rax, rax
 	jz @fail
-	mov qword ptr LOCALS.Local1[rbp], rax
-
-	; resolve imports
-	mov rcx, qword ptr LOCALS.Local1[rbp]
-	call pe_resolve_imports
 
 	; relocate PE addresses
-	mov rcx, qword ptr LOCALS.Local1[rbp]
+	mov rcx, qword ptr pl_OffsetHomeRCX[rbp]
 	call pe_relocate
+	test rax, rax
+	jz @fail
 
 	; adjust the PEB to inserd the newly mapped module in the modules list
-	mov rcx, qword ptr LOCALS.Local1[rbp]
+	mov rcx, qword ptr pl_OffsetHomeRCX[rbp]
 	call pe_adjust_PEB
+	test rax, rax
+	jz @fail
 
-	mov rax, qword ptr LOCALS.Local1[rbp]
+	mov rax, 1
 
 @exit:
 	_DeleteFrame

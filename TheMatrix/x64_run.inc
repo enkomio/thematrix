@@ -86,6 +86,8 @@ load_embedded_binary endp
 ;	Ret: The PE base address on success, NULL otherwise
 ;
 run_binary proc frame
+	x64rb_EmbeddedFile EQU LOCALS.Local1 
+	x64rb_DllBase EQU LOCALS.Local2
 	_CreateFrame rb_,LOCALS_SIZE
 	_EndProlog
 	_AllocHomeArea
@@ -99,25 +101,31 @@ run_binary proc frame
 	call load_embedded_binary
 	test rax, rax
 	jz @fail
-	mov qword ptr LOCALS.Local1[rbp], rax	
+	mov qword ptr x64rb_EmbeddedFile[rbp], rax	
 
-	; load the PE in memory
-	mov rcx, qword ptr LOCALS.Local1[rbp]
-	call pe_load
+	; allocate space an map headers and sections
+	mov rcx, qword ptr x64rb_EmbeddedFile[rbp]
+	call pe_map
 	test rax, rax
 	jz @fail
-	mov qword ptr LOCALS.Local2[rbp], rax
+	mov qword ptr x64rb_DllBase[rbp], rax
 
 	; hook functions. This must be done before the embedded binary is loaded,
 	; since in x64 we use EAT hooking. If not done in this way, the resolved
 	; functions will have the real values in the IAT and not the hooked ones.
-	mov rcx, qword ptr LOCALS.Local2[rbp]
+	mov rcx, qword ptr x64rb_DllBase[rbp]
 	call hooks_init
 	test rax, rax
 	jz @fail
 
+	; load the already mapped PE
+	mov rcx, qword ptr x64rb_DllBase[rbp]
+	call pe_load
+	test rax, rax
+	jz @fail	
+
 	; if the binary is a DLL the first input argument must be the allocation base
-	mov rax, qword ptr LOCALS.Local2[rbp]
+	mov rax, qword ptr x64rb_DllBase[rbp]
 	mov edx, IMAGE_DOS_HEADER.e_lfanew[rax]
 	add rdx, rax
 	movzx eax, word ptr IMAGE_NT_HEADERS64.FileHeader.Characteristics[rdx]
@@ -125,14 +133,14 @@ run_binary proc frame
 	jz @f
 
 	; modify the first argument with the base address
-	mov rax, qword ptr LOCALS.Local2[rbp]
+	mov rax, qword ptr x64rb_DllBase[rbp]
 	mov qword ptr rb_OffsetHomeRCX[rbp], rax
 @@:
 
 	; cleanup
 	mov r8, MEM_DECOMMIT
 	xor rdx, rdx
-	mov rcx, qword ptr LOCALS.Local1[rbp]
+	mov rcx, qword ptr x64rb_EmbeddedFile[rbp]
 	call VirtualFree
 	test rax, rax
 	jz @fail	
@@ -150,7 +158,7 @@ run_binary proc frame
 	mov r9, qword ptr rb_OffsetHomeR9[rbp]
 
 	; call OEP
-	mov r10, qword ptr LOCALS.Local2[rbp]
+	mov r10, qword ptr x64rb_DllBase[rbp]
 	mov eax, IMAGE_DOS_HEADER.e_lfanew[r10]
 	add rax, r10
 	mov eax, IMAGE_NT_HEADERS64.OptionalHeader.AddressOfEntryPoint[rax]	
@@ -158,7 +166,7 @@ run_binary proc frame
 	call rax
 
 	; return base address
-	mov rax, qword ptr LOCALS.Local2[rbp]
+	mov rax, qword ptr x64rb_DllBase[rbp]
 
 @exit:
 	_DeleteFrame

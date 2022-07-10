@@ -140,5 +140,6 @@ int hooks_kernel32(void)
 	hook_add("Kernel32.dll", "VirtualAlloc", hook_VirtualAlloc);
 	hook_add("Kernel32.dll", "CreateProcessW", hook_CreateProcessW);
 	hook_add("Kernel32.dll", "WriteFile", hook_WriteFile);
+	// hook CreateProcessInternalW, replace CreateProcessW
 	return 0;
 }
