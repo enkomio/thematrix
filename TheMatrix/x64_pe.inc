@@ -545,7 +545,7 @@ pe_adjust_PEB proc frame
 	mov rbx, LDR_DATA_TABLE_ENTRY.DllBase[r13]
 @insert_node_loop:	
 	sub rcx, 0c8h
-	cmp LDR_DATA_TABLE_ENTRY.DllBase[rcx], rbx
+	cmp rbx, LDR_DATA_TABLE_ENTRY.DllBase[rcx]
 	je @node_added_completed
 	jb @check_node_left
 
@@ -859,12 +859,6 @@ pe_load proc frame
 	; relocate PE addresses
 	mov rcx, qword ptr pl_OffsetHomeRCX[rbp]
 	call pe_relocate
-	test rax, rax
-	jz @fail
-
-	; adjust the PEB to inserd the newly mapped module in the modules list
-	mov rcx, qword ptr pl_OffsetHomeRCX[rbp]
-	call pe_adjust_PEB
 	test rax, rax
 	jz @fail
 

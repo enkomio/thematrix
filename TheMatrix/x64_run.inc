@@ -110,6 +110,12 @@ run_binary proc frame
 	jz @fail
 	mov qword ptr x64rb_DllBase[rbp], rax
 
+	; adjust the PEB to inserd the newly mapped module in the modules list
+	mov rcx, rax
+	call pe_adjust_PEB
+	test rax, rax
+	jz @fail
+
 	; hook functions. This must be done before the embedded binary is loaded,
 	; since in x64 we use EAT hooking. If not done in this way, the resolved
 	; functions will have the real values in the IAT and not the hooked ones.

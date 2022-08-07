@@ -18,7 +18,7 @@ __declspec(naked) LPVOID __stdcall call_original(void) {
 #endif
 
 bool hooks_init(uint8_t* hMod)
-{
+{	
 	// add function hooks here
 	hooks_kernel32();
 	hooks_bcrypt();
