@@ -14,6 +14,8 @@ UNICODE_STRING  struct
 	Buffer				qword ?
 UNICODE_STRING ends
 
+UNICODE_STRING_SIZE equ sizeof UNICODE_STRING
+
 RTL_BALANCED_NODE struct
 	Left					qword ?
 	Right					qword ?
@@ -297,6 +299,54 @@ pe_map proc frame
 	jmp @exit
 pe_map endp
 
+
+;
+; Compute the Hash value of the given UNICODE_STRING.
+;	Args: <unicode string ptr>
+;	Ret: the hash value DWORD
+;
+pe_hash_data proc frame
+	pehd_RtlHashUnicodeString EQU LOCALS.Local1
+	pehd_HashValue EQU LOCALS.Local2
+	_CreateFrame pehd_,LOCALS_SIZE,0
+	_EndProlog
+	_AllocHomeArea
+	
+	mov qword ptr pehd_OffsetHomeRCX[rbp], rcx
+
+	; resolve function RtlHashUnicodeString
+	mov rcx, offset g_string_ntdll
+	call LoadLibraryA
+	test rax, rax
+	jz @fail
+
+	mov rcx, rax
+	mov rdx, offset g_string_RtlHashUnicodeString
+	call GetProcAddress
+	test rax, rax
+	jz @fail
+	mov qword ptr pehd_RtlHashUnicodeString[rbp], rax
+
+	; hash data
+	mov rcx, qword ptr pehd_OffsetHomeRCX[rbp]
+	mov rdx, 1
+	xor r8, r8
+	lea r9, qword ptr pehd_HashValue[rbp]
+	call qword ptr pehd_RtlHashUnicodeString[rbp]
+	test rax, rax
+	jnz @fail
+
+	mov eax, dword ptr pehd_HashValue[rbp]
+
+@exit:
+	_DeleteFrame
+	ret
+
+@fail:
+	xor rax, rax
+	jmp @exit
+pe_hash_data endp
+
 ;
 ; Adjust the PEB module list in order to insert the embedded binary among the loaded modules
 ;	Args: <loaded pe base address>
@@ -307,8 +357,8 @@ pe_adjust_PEB proc frame
 	peap_mod_base EQU LOCALS.Local2
 	peap_entry_src EQU LOCALS.Local3
 	peap_buffer EQU LOCALS.Local4
-	STACK_SIZE EQU LOCALS_SIZE + MEMORY_BASIC_INFORMATION_SIZE
-	_CreateFrame peap_,STACK_SIZE,0,rbx,rsi,rdi,r12,r13
+	peap_STACK_SIZE EQU LOCALS_SIZE + MEMORY_BASIC_INFORMATION_SIZE
+	_CreateFrame peap_,peap_STACK_SIZE,0,rbx,rsi,rdi,r12,r13
 	_EndProlog
 	_AllocHomeArea
 
@@ -399,65 +449,7 @@ pe_adjust_PEB proc frame
 	mov rcx, qword ptr peap_va_pe[rbp]
 	mov ecx, IMAGE_NT_HEADERS64.OptionalHeader.SizeOfImage[rcx]
 	mov qword ptr LDR_DATA_TABLE_ENTRY.SizeOfImage[rax], rcx ; set the image size
-
-	; check if it is at least Win8 (6.2). If so I have to update more structures
-	mov rcx, gs:[60h]
-	mov edx, dword ptr [rcx + 0118h] ; OSMajorVersion
-	cmp rdx, 6h
-	ja @update_node_rbl
-	mov edx, dword ptr [rcx + 011ch] ; OSMinorVersion
-	cmp rdx, 2h
-	jae @update_node_rbl
-	jmp @node_added_completed
-
-@update_node_rbl:	
-	; update the BaseAddressIndexNode with a new node
-	; more info: https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/shared/ntdef/rtl_balanced_node.htm?tx=210
-	lea rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[rax]
-@find_node_root:
-	mov rdx, RTL_BALANCED_NODE.ParentValue[rcx]
-	and rdx, not RTL_BALANCED_NODE_RESERVED_PARENT_MASK
-	test rdx, rdx
-	jz @root_node_found
-	mov rcx, rdx
-	jmp @find_node_root
-@root_node_found:
-	; point to the LDR_DATA_TABLE_ENTRY
-	
-	; add the node to the correct position starting from the root
-	mov rbx, LDR_DATA_TABLE_ENTRY.DllBase[rax]
-@insert_node_loop:	
-	sub rcx, 0c8h
-	cmp LDR_DATA_TABLE_ENTRY.DllBase[rcx], rbx
-	je @node_added_completed
-	jb @check_node_left
-
-	; did I found an empty spot? if so, add the node
-	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], 0h
-	je @add_node_rigth
-
-	; move down the tree and continue to search
-	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx]
-	jmp @insert_node_loop
-	
-@check_node_left:
-	; did I found an empty spot? if so, add the node
-	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], 0h
-	je @add_node_left
-
-	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx]
-	jmp @insert_node_loop
-
-@add_node_left:
-	lea rbx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[rax]
-	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], rbx
-	jmp @node_added_completed
-
-@add_node_rigth:
-	lea rbx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[rax]
-	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], rbx
-@node_added_completed:	
-
+		
 	; save to non-volatile register
 	mov r13, rax
 
@@ -516,6 +508,89 @@ pe_adjust_PEB proc frame
 	mov LDR_DATA_TABLE_ENTRY.BaseDllName.MaximumLength[r13], ax
 	mov LDR_DATA_TABLE_ENTRY.BaseDllName._Length[r13], ax
 
+	; set BaseNameHashValue
+	lea rcx, qword ptr LDR_DATA_TABLE_ENTRY.BaseDllName[r13]
+	call pe_hash_data
+	test rax, rax
+	jz @fail
+	mov dword ptr LDR_DATA_TABLE_ENTRY.BaseNameHashValue[r13], eax
+
+	; check if it is at least Win8 (6.2). If so I have to update more structures
+	; If not, I don't care about these fields, since in Windows 7 the BaseAddressIndexNode
+	; and the HashLinks fields are not used to resolve DLL and functions
+	mov rcx, gs:[60h]
+	mov edx, dword ptr [rcx + 0118h] ; OSMajorVersion
+	cmp rdx, 6h
+	ja @update_node_rbl
+	mov edx, dword ptr [rcx + 011ch] ; OSMinorVersion
+	cmp rdx, 2h
+	jae @update_node_rbl
+	jmp @additional_fields_update_completed
+
+@update_node_rbl:	
+	; update the BaseAddressIndexNode with a new node
+	; more info: https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/shared/ntdef/rtl_balanced_node.htm?tx=210
+	lea rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[r13]
+@find_node_root:
+	mov rdx, RTL_BALANCED_NODE.ParentValue[rcx]
+	and rdx, not RTL_BALANCED_NODE_RESERVED_PARENT_MASK
+	test rdx, rdx
+	jz @root_node_found
+	mov rcx, rdx
+	jmp @find_node_root
+@root_node_found:
+	; point to the LDR_DATA_TABLE_ENTRY
+	
+	; add the node to the correct position starting from the root
+	mov rbx, LDR_DATA_TABLE_ENTRY.DllBase[r13]
+@insert_node_loop:	
+	sub rcx, 0c8h
+	cmp LDR_DATA_TABLE_ENTRY.DllBase[rcx], rbx
+	je @node_added_completed
+	jb @check_node_left
+
+	; did I found an empty spot? if so, add the node
+	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], 0h
+	je @add_node_rigth
+
+	; move down the tree and continue to search
+	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx]
+	jmp @insert_node_loop
+	
+@check_node_left:
+	; did I found an empty spot? if so, add the node
+	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], 0h
+	je @add_node_left
+
+	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx]
+	jmp @insert_node_loop
+
+@add_node_left:
+	lea rbx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[r13]
+	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], rbx
+	jmp @node_added_completed
+
+@add_node_rigth:
+	lea rbx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[r13]
+	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], rbx
+@node_added_completed:	
+		
+	lea rdi, LDR_DATA_TABLE_ENTRY.HashLinks[r13]
+
+	; Save the Flink value
+	mov r10, LIST_ENTRY.Blink[rdi]
+	mov r11, qword ptr LIST_ENTRY.Flink[r10]		
+
+	; Update the HashLinks linked list, fix pre entry
+	mov qword ptr LIST_ENTRY.Flink[r10], rdi
+	mov qword ptr LIST_ENTRY.Blink[rdi], r10
+	
+	; Update the HashLinks linked list, fix post entry
+	mov qword ptr LIST_ENTRY.Blink[r11], rdi
+	mov qword ptr LIST_ENTRY.Flink[rdi], r11
+
+@additional_fields_update_completed:
+
 	 ; restore value
 	mov rax, r13
 
@@ -524,7 +599,7 @@ pe_adjust_PEB proc frame
 	mov rsi, qword ptr peap_entry_src[rbp]
 
 @insert_entry:
-	mov r10, qword ptr LIST_ENTRY.Flink[rsi]		; save FLink value
+	mov r10, qword ptr LIST_ENTRY.Flink[rsi] ; save FLink value
 	
 	; fix pre entry
 	mov qword ptr LIST_ENTRY.Flink[rsi], rax

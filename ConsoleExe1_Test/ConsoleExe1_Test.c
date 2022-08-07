@@ -329,9 +329,17 @@ void WriteFile_test(void)
     DeleteFile(L"test.txt");
 }
 
+void GetModuleFileNameW_test(void)
+{    
+    WCHAR filename[1024] = { 0 };
+    if (GetModuleFileNameW(GetModuleHandle(NULL), filename, ARRAYSIZE(filename)))
+        printf("%ls\n", filename);
+}
+
 int main(void)
 {
     printf("Start test functions\n");
+    GetModuleFileNameW_test();
     BCrypt_test();
     WinInet_test();
     VirtualAlloc_test();   

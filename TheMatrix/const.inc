@@ -2,6 +2,8 @@ g_string_DllRegisterServer byte "DllRegisterServer", 0h
 g_string_add_opt byte '-',0h,'a',0h,'d',0h,'d',0h ; "-add" unicode 
 g_string_file_create byte "Activator file created", 0h
 g_string_load_error byte "Resource file not found. Please run it with '-add' option first", 0h
+g_string_ntdll byte "ntdll.dll",0h
+g_string_RtlHashUnicodeString byte "RtlHashUnicodeString",0h
 
 
 ; Windows constants

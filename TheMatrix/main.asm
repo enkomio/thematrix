@@ -4,9 +4,6 @@ comment !
 This application provide a mechanism to hook Win32 API for tracing purpose.
 
 2022 (C) Antonio 's4tan' Parata
-
-TODO: 
-* When modifing PEB.Ldr, change the FullDllName and BaseDllName. Only for x86 (x64 done)
 !
 
 VERSION equ 1.0
