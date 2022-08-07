@@ -49,3 +49,8 @@ hook_add("Bcrypt.dll", "BCryptEncrypt", hook_BCryptEncrypt);
 ```
   
 The function must have the same signature of the hooked function. The function **call_original** is used to call the original function. It is enough to call this function with the original function input parameters, the framework will do all the heavy work for you in order to call the correct function ;) The call to the call_original function must be performed in the same thread executing the hook, otherwise the process will crash.
+
+# TODO
+* **[x86]** When modifing PEB.Ldr, change the _FullDllName_ and _BaseDllName_
+* **[x86]** For Win >= 8 modify the _BaseAddressIndexNode_ and _HashLinks_
+* Hook _CreateProcessInternalW_ instead of _CreateProcessW_
