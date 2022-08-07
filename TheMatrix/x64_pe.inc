@@ -287,6 +287,12 @@ pe_map proc frame
 	add r10, sizeof IMAGE_SECTION_HEADER
 	loop @b
 
+	; adjust the PEB to inserd the newly mapped module in the modules list
+	mov rcx, qword ptr pem_va_mz[rbp]
+	call pe_adjust_PEB
+	test rax, rax
+	jz @fail
+
 	; return base address
 	mov rax, qword ptr pem_va_mz[rbp]
 
@@ -854,7 +860,7 @@ pe_load proc frame
 	; resolve imports
 	call pe_resolve_imports
 	test rax, rax
-	jz @fail
+	jz @fail	
 
 	; relocate PE addresses
 	mov rcx, qword ptr pl_OffsetHomeRCX[rbp]
