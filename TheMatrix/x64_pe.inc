@@ -496,7 +496,7 @@ pe_adjust_PEB proc frame
 	add rdi, 3h ; base dll name
 	sub r12, rdi ; base dll name size
 
-	; allocate space for the DLL
+	; allocate space for the DLL base name
 	mov rcx, r12
 	call heap_alloc
 	test rax, rax

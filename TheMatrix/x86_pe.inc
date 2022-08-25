@@ -264,6 +264,7 @@ pe_adjust_PEB proc base_addr:ptr byte
 	local mem_info:MEMORY_BASIC_INFORMATION
 	local ldr_entry_target:dword
 	local ldr_entry_new:dword
+	local full_dll_name:ptr byte
 
 	mov eax, base_addr
 	mov ebx, IMAGE_DOS_HEADER.e_lfanew[eax]
@@ -343,15 +344,80 @@ pe_adjust_PEB proc base_addr:ptr byte
 	mov eax, base_addr
 	mov ebx, pe_Addr
 
+	; set the DllBase
 	mov esi, ldr_entry_new	
 	mov LDR_DATA_TABLE_ENTRY.DllBase[esi], eax	
 	
+	; set the EntryPoint
 	mov eax, IMAGE_NT_HEADERS32.OptionalHeader.AddressOfEntryPoint[ebx]
 	add eax, base_addr
 	mov LDR_DATA_TABLE_ENTRY.EntryPoint[esi], eax
 	
+	; set the ImageSize
 	mov eax, IMAGE_NT_HEADERS32.OptionalHeader.SizeOfImage[ebx]
 	mov LDR_DATA_TABLE_ENTRY.SizeOfImage[esi], eax
+
+	; set the FullDllName
+	invoke heap_alloc, 512h
+	test eax, eax
+	jz @fail
+	mov full_dll_name, eax
+
+	call get_module_base
+	test eax, eax
+	jz @fail
+
+	; get the module name
+	invoke GetModuleFileNameW, eax, full_dll_name, 512h
+	test eax, eax
+	jz @fail
+
+	; account space for unicode char
+	shl eax, 1
+
+	; set the FullDllName
+	mov ecx, full_dll_name
+	mov LDR_DATA_TABLE_ENTRY.FullDllName.Buffer[esi], ecx
+	mov LDR_DATA_TABLE_ENTRY.FullDllName.MaximumLength[esi], ax
+	mov LDR_DATA_TABLE_ENTRY.FullDllName._Length[esi], ax	
+
+	; go to the DLL name
+	add ecx, eax
+
+	; save value
+	push ecx
+
+	mov edi, ecx
+	std
+	mov ecx, eax
+	mov eax, 05ch
+	repnz scasb
+	cld
+
+	; restore value
+	pop ecx
+
+	add edi, 3h ; base dll name
+	sub ecx, edi ; base dll name size
+
+	; save size to non-volatile
+	mov ebx, ecx
+
+	; allocate space for the DLL base name
+	invoke heap_alloc, ecx
+	test eax, eax
+	jz @fail
+
+	; copy the value
+	mov esi, edi
+	mov edi, eax
+	mov ecx, ebx
+	rep movsb	
+
+	; set the BaseDllName
+	mov LDR_DATA_TABLE_ENTRY.BaseDllName.Buffer[esi], eax	
+	mov LDR_DATA_TABLE_ENTRY.BaseDllName.MaximumLength[esi], bx
+	mov LDR_DATA_TABLE_ENTRY.BaseDllName._Length[esi], bx
 
 	; finally, add the new entry to all the lists
 	mov edi, ldr_entry_new
