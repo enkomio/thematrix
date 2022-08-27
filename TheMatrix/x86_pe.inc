@@ -13,6 +13,12 @@ UNICODE_STRING  struct
 	Buffer				dword ?
 UNICODE_STRING ends
 
+RTL_BALANCED_NODE struct
+	Left					dword ?
+	Right					dword ?
+	ParentValue				dword ?
+RTL_BALANCED_NODE ends
+
 LDR_DATA_TABLE_ENTRY struct
 	InLoadOrderLinks				LIST_ENTRY <>
 	InMemoryOrderLinks				LIST_ENTRY <>
@@ -33,6 +39,12 @@ LDR_DATA_TABLE_ENTRY struct
 	ServiceTagLinks					LIST_ENTRY <>
 	StaticLinks						LIST_ENTRY <>
 	SwitchBackContext				dword ?
+	BaseAddressIndexNode			RTL_BALANCED_NODE <>
+	MappingInfoIndexNode			RTL_BALANCED_NODE <>
+	OriginalBase					dword ?
+	LoadTime						qword ?
+	BaseNameHashValue				dword ?
+	LoadReason						dword ?
 LDR_DATA_TABLE_ENTRY ends
 
 PEB_LDR_DATA struct
@@ -204,6 +216,44 @@ IMAGE_SECTION_HEADER ends
 ;-------------------------------------------------------------------------
 ; Functions
 ;-------------------------------------------------------------------------
+
+;
+; Compute the Hash value of the given UNICODE_STRING.
+;	Args: <unicode string ptr>
+;	Ret: the hash value DWORD
+;
+pe_hash_data proc buffer:ptr byte
+	local hash_value:dword
+
+	; resolve function RtlHashUnicodeString
+	invoke LoadLibraryA, offset g_string_ntdll
+	test eax, eax
+	jz @fail
+
+	invoke GetProcAddress, eax, offset g_string_RtlHashUnicodeString
+	test eax, eax
+	jz @fail
+
+	; hash data
+	lea ecx, hash_value
+	push ecx
+	push 0h
+	push 1h
+	push buffer
+	call eax
+	test eax, eax
+	jnz @fail
+
+	mov eax, hash_value
+
+@exit:
+	ret
+
+@fail:
+	xor eax, eax
+	jmp @exit
+pe_hash_data endp
+
 
 pe_map proc buffer:ptr byte
 	local base_addr:ptr byte
@@ -408,16 +458,31 @@ pe_adjust_PEB proc base_addr:ptr byte
 	test eax, eax
 	jz @fail
 
+	; save value
+	push esi
+
 	; copy the value
 	mov esi, edi
 	mov edi, eax
 	mov ecx, ebx
 	rep movsb	
 
+	; restore value
+	pop esi
+
 	; set the BaseDllName
 	mov LDR_DATA_TABLE_ENTRY.BaseDllName.Buffer[esi], eax	
 	mov LDR_DATA_TABLE_ENTRY.BaseDllName.MaximumLength[esi], bx
 	mov LDR_DATA_TABLE_ENTRY.BaseDllName._Length[esi], bx
+
+	; set BaseNameHashValue
+	invoke pe_hash_data, addr LDR_DATA_TABLE_ENTRY.BaseDllName[esi]
+	test eax, eax
+	jz @fail
+	mov dword ptr LDR_DATA_TABLE_ENTRY.BaseNameHashValue[esi], eax
+
+	;;;;;;;;;;;;;;;
+	; TODO modify BaseNameHashValue, HashLinks, BaseAddressIndexNode
 
 	; finally, add the new entry to all the lists
 	mov edi, ldr_entry_new
