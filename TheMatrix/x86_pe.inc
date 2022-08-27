@@ -545,10 +545,22 @@ pe_adjust_PEB proc base_addr:ptr byte
 	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[ecx], ebx
 @node_added_completed:
 
-@additional_fields_update_completed:
+	; Fix HashLinks list
+	lea eax, LDR_DATA_TABLE_ENTRY.HashLinks[esi]
 
-	;;;;;;;;;;;;;;;
-	; TODO modify HashLinks, BaseAddressIndexNode
+	; Save the Flink value
+	mov ecx, LIST_ENTRY.Blink[eax]
+	mov edi, LIST_ENTRY.Flink[ecx]		
+
+	; Update the HashLinks linked list, fix pre entry
+	mov LIST_ENTRY.Flink[ecx], eax
+	mov LIST_ENTRY.Blink[eax], ecx
+	
+	; Update the HashLinks linked list, fix post entry
+	mov LIST_ENTRY.Blink[edi], eax
+	mov LIST_ENTRY.Flink[eax], edi
+
+@additional_fields_update_completed:
 
 	; finally, add the new entry to all the lists
 	mov edi, ldr_entry_new
