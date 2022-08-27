@@ -34,14 +34,16 @@ LDR_DATA_TABLE_ENTRY struct
 	HashLinks						LIST_ENTRY <>
 	TimeDateStamp					dword ?
 	EntryPointActivationContext		dword ?
-	PatchInformation				dword ?
-	ForwarderLinks					LIST_ENTRY <>
-	ServiceTagLinks					LIST_ENTRY <>
-	StaticLinks						LIST_ENTRY <>
+	_Lock							dword ?
+	DgaNode							dword ?
+	NodeModuleLink					LIST_ENTRY <>	
+	LoadContext						dword ?
+	ParentDllBase					dword ?
 	SwitchBackContext				dword ?
 	BaseAddressIndexNode			RTL_BALANCED_NODE <>
 	MappingInfoIndexNode			RTL_BALANCED_NODE <>
 	OriginalBase					dword ?
+	__padding1                      dword ?
 	LoadTime						qword ?
 	BaseNameHashValue				dword ?
 	LoadReason						dword ?
@@ -481,8 +483,72 @@ pe_adjust_PEB proc base_addr:ptr byte
 	jz @fail
 	mov dword ptr LDR_DATA_TABLE_ENTRY.BaseNameHashValue[esi], eax
 
+	; check if it is at least Win8 (6.2). If so I have to update more structures
+	; If not, I don't care about these fields, since in Windows 7 the BaseAddressIndexNode
+	; and the HashLinks fields are not used to resolve DLL and functions
+	assume fs:nothing
+	mov eax, fs:[30h]
+	assume fs:error
+	cmp dword ptr [eax + 0a4h], 6h ; check OSMajorVersion
+	ja @update_node_rbl
+	cmp dword ptr [eax + 0a8h], 2h ; check OSMinorVersion
+	jae @update_node_rbl
+	jmp @additional_fields_update_completed
+
+@update_node_rbl:
+	; update the BaseAddressIndexNode with a new node
+	; more info: https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/shared/ntdef/rtl_balanced_node.htm?tx=210
+	lea ecx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[esi]
+@find_node_root:
+	mov edx, RTL_BALANCED_NODE.ParentValue[ecx]
+	and edx, not RTL_BALANCED_NODE_RESERVED_PARENT_MASK
+	test edx, edx
+	jz @root_node_found
+	mov ecx, edx
+	jmp @find_node_root
+@root_node_found:
+	; point to the LDR_DATA_TABLE_ENTRY
+	
+	; add the node to the correct position starting from the root
+	mov ebx, LDR_DATA_TABLE_ENTRY.DllBase[esi]
+@insert_node_loop:	
+	sub ecx, 068h
+	cmp ebx, LDR_DATA_TABLE_ENTRY.DllBase[ecx]
+	je @node_added_completed
+	jb @check_node_left
+
+	; checking Right node
+	; did I found an empty spot? if so, add the node
+	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[ecx], 0h
+	je @add_node_rigth
+
+	; move down the tree and continue to search
+	mov ecx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[ecx]
+	jmp @insert_node_loop
+
+@check_node_left:
+	; did I found an empty spot? if so, add the node
+	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[ecx], 0h
+	je @add_node_left
+
+	; move down the tree and continue to search
+	mov ecx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[ecx]
+	jmp @insert_node_loop
+
+@add_node_left:
+	lea ebx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[esi]
+	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[ecx], ebx
+	jmp @node_added_completed
+
+@add_node_rigth:
+	lea ebx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode[esi]
+	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[ecx], ebx
+@node_added_completed:
+
+@additional_fields_update_completed:
+
 	;;;;;;;;;;;;;;;
-	; TODO modify BaseNameHashValue, HashLinks, BaseAddressIndexNode
+	; TODO modify HashLinks, BaseAddressIndexNode
 
 	; finally, add the new entry to all the lists
 	mov edi, ldr_entry_new
