@@ -555,6 +555,7 @@ pe_adjust_PEB proc frame
 	je @node_added_completed
 	jb @check_node_left
 
+	; checking Right node
 	; did I found an empty spot? if so, add the node
 	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], 0h
 	je @add_node_rigth
@@ -568,6 +569,7 @@ pe_adjust_PEB proc frame
 	cmp LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx], 0h
 	je @add_node_left
 
+	; move down the tree and continue to search
 	mov rcx, LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Left[rcx]
 	jmp @insert_node_loop
 
@@ -581,6 +583,7 @@ pe_adjust_PEB proc frame
 	mov LDR_DATA_TABLE_ENTRY.BaseAddressIndexNode.Right[rcx], rbx
 @node_added_completed:	
 		
+	; Fix HashLinks list
 	lea rdi, LDR_DATA_TABLE_ENTRY.HashLinks[r13]
 
 	; Save the Flink value
