@@ -548,28 +548,28 @@ pe_adjust_PEB proc base_addr:ptr byte
 	; Fix HashLinks list
 	lea eax, LDR_DATA_TABLE_ENTRY.HashLinks[esi]
 
-	; Save the Flink value
-	mov ecx, LIST_ENTRY.Blink[eax]
-	mov edi, LIST_ENTRY.Flink[ecx]		
-
 	; Update the HashLinks linked list, fix pre entry
+	mov ecx, LIST_ENTRY.Blink[eax]
+	test ecx, ecx
+	jz @f
 	mov LIST_ENTRY.Flink[ecx], eax
-	mov LIST_ENTRY.Blink[eax], ecx
-	
+@@:
+
 	; Update the HashLinks linked list, fix post entry
-	mov LIST_ENTRY.Blink[edi], eax
-	mov LIST_ENTRY.Flink[eax], edi
+	mov ecx, LIST_ENTRY.Flink[eax]
+	test ecx, ecx
+	jz @f
+	mov LIST_ENTRY.Blink[ecx], eax
+@@:
 
 @additional_fields_update_completed:
 
 	; finally, add the new entry to all the lists
 	mov edi, ldr_entry_new
 	mov esi, ldr_entry_target
-
-	; the number of lists to fix
 	mov ecx, 3
 
-@fix_links:
+@insert_entry:
 	; fix all lists
 	mov ebx, dword ptr [esi]		; save value
 	mov dword ptr [esi], edi		; Modify pre-FLink
@@ -580,7 +580,7 @@ pe_adjust_PEB proc base_addr:ptr byte
 	; move to next list
 	add edi, sizeof LIST_ENTRY
 	add esi, sizeof LIST_ENTRY
-	loop @fix_links
+	loop @insert_entry
 		
 @finish:
 	mov eax, 1
@@ -816,59 +816,63 @@ pe_load endp
 ;	Args: <DLL base>, <function name>
 ;	Ret: The address containing the function RVA on success, or NULL otherwise
 ;
-pe_resolve_exported_function proc base_addr:dword, funnc_name:dword
+pe_resolve_exported_function proc base_addr:dword, func_name:dword
 	local pe_file:dword
 
+	; go to PE
 	mov eax, base_addr
 	mov eax, IMAGE_DOS_HEADER.e_lfanew[eax]
 	add eax, base_addr
 	mov pe_file, eax
 
+	; ensure we have an export directory
 	lea eax, IMAGE_NT_HEADERS32.OptionalHeader.DataDirectory[eax]
 	mov ecx, IMAGE_DATA_DIRECTORY._Size[eax]
 	test ecx, ecx
 	jz @exit
 
+	; go to the export directory
 	mov ebx, IMAGE_DATA_DIRECTORY.VirtualAddress[eax]
 	add ebx, base_addr
 
+	; get export information, ECX = Numbers of Names, esi = Address of Names
 	mov ecx, IMAGE_EXPORT_DIRECTORY.NumberOfNames[ebx]
 	mov esi, IMAGE_EXPORT_DIRECTORY.AddressOfNames[ebx]
 	add esi, base_addr
 
-	movdqu xmm1, xmmword ptr [g_string_DllRegisterServer]
+	; zero index
+	xor edx, edx
 @find_exported_function:
-	mov eax, dword ptr [esi]
-	add esi, sizeof dword
+	; get the i-th function name
+	mov eax, dword ptr [esi + edx * sizeof dword]	
 	add eax, base_addr
-	
-	vmovups xmm0, xmmword ptr [eax]
-	pcmpeqd xmm0, xmm1	
-	ptest xmm0, xmm0
+
+	; save value
+	push ecx
+
+	; check if the name matches
+	invoke string_equals, func_name, eax
+	test eax, eax
 	jnz @function_found
+
+	; restore value
+	pop ecx
+	
+	; go to the next function
+	inc edx
 	loop @find_exported_function
 	jmp @fail
 
 @function_found:
-	add eax, sizeof xmmword
-	mov ax, word ptr [eax]
-	cmp ax, 72h ; verify the 'r\x0' chars
-	jne @find_exported_function
-
-	; compute function index
-	mov eax, IMAGE_EXPORT_DIRECTORY.NumberOfNames[ebx]
-	sub eax, ecx
-
-	; resolve DllRegisterServer function address
+	; get the i-th function ordinal
 	mov esi, IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals[ebx]
 	add esi, base_addr
-	movzx eax, word ptr [esi + sizeof word * eax]
+	movzx eax, word ptr [esi + sizeof word * edx]
 
-	; get the i-th function address
+	; get the i-th function RVA 
 	mov esi, IMAGE_EXPORT_DIRECTORY.AddressOfFunctions[ebx]
 	add esi, base_addr
-	mov eax, dword ptr [esi + eax * sizeof dword]
-	add eax, base_addr	
+	lea eax, dword ptr [esi + eax * sizeof dword]
 	
 @exit:	
 	ret

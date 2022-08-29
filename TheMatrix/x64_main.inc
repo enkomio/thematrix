@@ -125,16 +125,10 @@ run_as_dll proc frame
 	jne @exit
 
 	; this function will call the DLL entry-point
-	call run_binary	
-	test rax, rax
-	jz @exit
-
-	; save the value for exported method call
-	mov g_base_address, rax
+	call run_binary		
 
  @exit:
 	_DeleteFrame
-	mov rax, 1h
 	ret
 run_as_dll endp
 
@@ -231,11 +225,6 @@ main proc frame
 	ret
 main endp
 
-DllMain proc frame
-	_CreateFrame dllm_
-	_EndProlog
-	_AllocHomeArea
-	call main
-	_DeleteFrame
-	ret
+DllMain proc	
+	jmp main
 DllMain endp

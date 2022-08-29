@@ -90,6 +90,10 @@ run_binary proc a0:dword, a1:dword, a2:dword
 	test eax, eax
 	jz @fail
 
+	; save the value for exported method call
+	mov eax, base_addr
+	mov g_base_address, eax
+
 	; flush instructions
 	invoke FlushInstructionCache, -1h, 0h, 0h
 	
@@ -114,7 +118,6 @@ run_binary proc a0:dword, a1:dword, a2:dword
 	add eax, base_addr
  	call eax
 
-	mov eax, base_addr
 @exit:
 	ret
 	

@@ -920,7 +920,7 @@ pe_resolve_exported_function proc frame
 	mov r11d, IMAGE_EXPORT_DIRECTORY.AddressOfNames[rax]
 	add r11, qword ptr peresex_OffsetHomeRCX[rbp]
 
-	; index
+	; zero index
 	xor r12, r12
 @find_exported_function:
 	mov qword ptr peresex_counter[rbp], rcx

@@ -151,6 +151,10 @@ run_binary proc frame
 	mov rcx, -1
 	call FlushInstructionCache
 
+	; save the value for exported method call
+	mov rax, x64rb_DllBase[rbp]
+	mov g_base_address, rax
+
 	; restore arguments
 	mov rcx, qword ptr rb_OffsetHomeRCX[rbp]
 	mov rdx, qword ptr rb_OffsetHomeRDX[rbp]
@@ -164,9 +168,6 @@ run_binary proc frame
 	mov eax, IMAGE_NT_HEADERS64.OptionalHeader.AddressOfEntryPoint[rax]	
 	add rax, r10
 	call rax
-
-	; return base address
-	mov rax, qword ptr x64rb_DllBase[rbp]
 
 @exit:
 	_DeleteFrame

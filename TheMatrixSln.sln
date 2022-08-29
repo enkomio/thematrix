@@ -9,6 +9,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{E2FB54DE-F
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConsoleExe1_Test", "ConsoleExe1_Test\ConsoleExe1_Test.vcxproj", "{9F475AB8-D73F-49DF-B994-BDCACE931068}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B846C3A4-5F16-4465-9B1F-C95641CC12B7}"
+	ProjectSection(SolutionItems) = preProject
+		add_resource_x64.bat = add_resource_x64.bat
+		add_resource_x86.bat = add_resource_x86.bat
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

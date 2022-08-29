@@ -131,14 +131,8 @@ run_as_dll proc hinstDLL:dword, fdwReason:dword, lpReserved:dword
 	push fdwReason
 	push hinstDLL
 	call run_binary	
-	test eax, eax
-	jz @exit
 
-	; save the value for exported method call
-	mov g_base_address, eax
-		
-@exit:	
-	mov eax, 1h
+@exit:
 	ret
 run_as_dll endp
 
@@ -243,7 +237,6 @@ main proc
 	jmp @exit
 main endp
 
-DllMain proc frame
-	call main
-	ret
+DllMain proc
+	jmp main
 DllMain endp
