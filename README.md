@@ -8,7 +8,9 @@ I wrote a blog post explaining how it works: <a href="http://antonioparata.blogs
 To monitor a new binary is necessary to create an **activator**. The activator will load and monitor a user input binary. To create an activator use the **-add** option. An example of usage is the following one:
 
 ```
-TheMatrix.exe -add c:\path\to\my\binary.dll
+c:\>TheMatrix.exe -add c:\path\to\my\binary.dll
+Activator file created
+c:\>regsvr32.exe TheMatrix.build.dll
 ```
 
 This command will create a new PE file representing the activator. The activator will have the same format (DLL or EXE) of the input binary.
