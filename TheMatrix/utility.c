@@ -21,7 +21,7 @@ void log_data(size_t data_size, uint8_t* data, char* name)
 		SHCreateDirectoryExA(NULL, log_file, NULL);
 
 		int32_t l = strlen(log_file);
-		if (snprintf(log_file + l, l, "\\%d_%s.log", g_api_call_counter++, name)) {
+		if (snprintf(log_file + l, sizeof(log_file) - l, "\\%d_%s.log", g_api_call_counter++, name)) {
 			hFile = CreateFileA(
 				log_file,
 				GENERIC_READ | GENERIC_WRITE,
