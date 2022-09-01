@@ -287,8 +287,8 @@ void BCrypt_test(void)
         BCRYPT_BLOCK_PADDING
     )) return;
 
-    // verify
-    if (strcmp(decrypted_text, plain_secret_text, sizeof(plain_secret_text)))
+    // verify    
+    if (strcmp(decrypted_text, plain_secret_text))
         return;
        
     // clean-up
