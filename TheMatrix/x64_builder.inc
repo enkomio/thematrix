@@ -11,9 +11,13 @@ add_resource proc frame
 
 	_CreateFrame ar_,LOCALS_SIZE,0,rdi
 	_EndProlog	
+	_AllocHomeArea
 
 	mov qword ptr ar_OffsetHomeRCX[rbp], rcx
 	mov qword ptr ar_OffsetHomeRDX[rbp], rdx
+
+	; used for stack alignment
+	sub rsp, sizeof qword
 
 	; get the size of the file to embed
 	push 0h
@@ -23,10 +27,9 @@ add_resource proc frame
 	xor r8, r8
 	mov rdx, GENERIC_READ
 	mov rcx, qword ptr ar_OffsetHomeRDX[rbp]
-
 	_AllocHomeArea
 	call CreateFileW
-	test rax, rax
+	cmp rax, INVALID_HANDLE_VALUE
 	jz @fail
 	mov qword ptr ar_hFile[rbp], rax
 
@@ -46,6 +49,9 @@ add_resource proc frame
 	test rax, rax
 	jz @fail
 	mov qword ptr ar_buffer[rbp], rax
+
+	; used for stack alignment
+	sub rsp, 3 * sizeof qword
 
 	; read the file content
 	push 0
@@ -72,6 +78,9 @@ add_resource proc frame
 	test rax, rax
 	jz @fail
 	mov qword ptr ar_hRes[rbp], rax
+
+	; used for stack alignment
+	sub rsp, 2 * sizeof qword
 
 	push qword ptr ar_file_size[rbp]
 	push qword ptr ar_buffer[rbp]
@@ -201,6 +210,9 @@ clone_file proc frame
 	cmp dword ptr LOCALS.Local3[rbp], 'lld.'
 	jne @f
 
+	; used for stack alignment
+	sub rsp, sizeof qword
+
 	; read the file content
 	push 0h
 	push 0h
@@ -228,6 +240,9 @@ clone_file proc frame
 	test rax, rax
 	jz @fail
 	mov rdi, rax ; save buffer ptr
+
+	; used for stack alignment
+	sub rsp, 3 * sizeof qword
 
 	; read the file content
 	push 0
@@ -262,12 +277,15 @@ clone_file proc frame
 	cmp rax, INVALID_SET_FILE_POINTER
 	je @fail
 
+	; used for stack alignment
+	sub rsp, 3 * sizeof qword
+
 	; write back the result
+	push 0h
 	mov rcx, rsi
 	mov rdx, rdi
 	mov r8, rbx
-	lea r9, qword ptr LOCALS.Local4[rbp]
-	push 0h
+	lea r9, qword ptr LOCALS.Local4[rbp]	
 	_AllocHomeArea
 	call WriteFile
 	test rax, rax
@@ -280,7 +298,6 @@ clone_file proc frame
 	mov rcx, rdi
 	call heap_free
 @@:
-
 
 	; return the name of the cloned file
 	mov rax, qword ptr LOCALS.Local2[rbp]

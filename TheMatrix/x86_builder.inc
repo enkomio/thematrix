@@ -12,7 +12,7 @@ add_resource proc file_to_add:ptr char , target_file:ptr char
 
 	; get file to add size
 	invoke CreateFileW, file_to_add, GENERIC_READ, 0h, 0h, OPEN_EXISTING, 0h, 0h
-	cmp eax, ERROR_FILE_NOT_FOUND
+	cmp eax, INVALID_HANDLE_VALUE
 	je @fail
 	mov hFile, eax
 	invoke GetFileSize, hFile, 0h

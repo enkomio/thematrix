@@ -16,6 +16,9 @@ print_buffer proc frame
 	test rax, rax
 	jz @fail
 
+	; used for stack alignment
+	sub rsp, 3 * sizeof qword
+
 	push 0
 	lea r9, LOCALS.Local1[rbp]
 	mov r8, qword ptr pb_OffsetHomeRDX[rbp]
